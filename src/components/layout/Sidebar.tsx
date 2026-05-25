@@ -15,6 +15,7 @@ import {
   LogOut,
   UserCircle,
   HandCoins,
+  Wallet,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -39,6 +40,7 @@ const navItems: NavItem[] = [
   { label: "Transaksi Gadai", icon: HandCoins, path: "/transaksi" },
   { label: "Pembayaran", icon: CreditCard, path: "/pembayaran" },
   { label: "Laporan", icon: BarChart3, path: "/laporan" },
+  { label: "Arus Kas", icon: Wallet, path: "/arus-kas" },
   { label: "Data Cabang", icon: Building2, path: "/cabang", roles: ["super_admin", "owner"] },
   { label: "Pengaturan", icon: Settings, path: "/pengaturan", roles: ["super_admin", "owner"] },
 ];

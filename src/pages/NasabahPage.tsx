@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { dummyNasabah, Nasabah, formatDate, dummyCabang } from "@/lib/dummy-data";
 import { useCabang } from "@/hooks/use-cabang";
+import { useLocalStorage } from "@/hooks/use-local-storage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,7 +30,7 @@ export default function NasabahPage() {
   const [open, setOpen] = useState(false);
   const [viewOpen, setViewOpen] = useState(false);
   const [selected, setSelected] = useState<Nasabah | null>(null);
-  const [nasabahList, setNasabahList] = useState<Nasabah[]>(dummyNasabah);
+  const [nasabahList, setNasabahList] = useLocalStorage<Nasabah[]>("shiela-nasabah", dummyNasabah);
 
   const [form, setForm] = useState({
     nama_lengkap: "", nik: "", alamat: "", nomor_hp: "",

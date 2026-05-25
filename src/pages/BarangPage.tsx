@@ -4,6 +4,7 @@ import {
   formatCurrency, formatDate, getStatusBarangColor, getLabelStatus
 } from "@/lib/dummy-data";
 import { useCabang } from "@/hooks/use-cabang";
+import { useLocalStorage } from "@/hooks/use-local-storage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -31,7 +32,7 @@ export default function BarangPage() {
   const [open, setOpen] = useState(false);
   const [viewOpen, setViewOpen] = useState(false);
   const [selected, setSelected] = useState<BarangJaminan | null>(null);
-  const [barangList, setBarangList] = useState<BarangJaminan[]>(dummyBarang);
+  const [barangList, setBarangList] = useLocalStorage<BarangJaminan[]>("shiela-barang", dummyBarang);
 
   const [form, setForm] = useState({
     nama_barang: "", kategori: "emas", merek: "", kondisi: "baik",

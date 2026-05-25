@@ -5,19 +5,147 @@ import {
   getStatusTransaksiColor, getLabelStatus,
 } from "@/lib/dummy-data";
 import { useCabang } from "@/hooks/use-cabang";
+import { useLocalStorage } from "@/hooks/use-local-storage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   HandCoins, Plus, Search, Eye, RefreshCw, CheckCircle,
   ChevronLeft, ChevronRight, FileText, Printer, Calculator
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+
+function generateAkadHtml(trx: TransaksiGadai, ujrahTotal: number): string {
+  const terbilang = (n: number) => n.toLocaleString("id-ID");
+  const today = new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" });
+  return `<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8"/>
+<title>Akad Rahn - ${trx.nomor_transaksi}</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: Arial, sans-serif; font-size: 12px; margin: 0; padding: 32px; color: #111; }
+  .header { text-align: center; border-bottom: 3px double #333; padding-bottom: 12px; margin-bottom: 16px; }
+  .logo-area { display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 6px; }
+  .logo-area img { width: 48px; height: 48px; object-fit: contain; }
+  h1 { font-size: 16px; margin: 4px 0; letter-spacing: 1px; }
+  h2 { font-size: 13px; margin: 2px 0; color: #555; font-weight: normal; }
+  .nomor { font-size: 13px; font-weight: bold; margin-top: 8px; }
+  .section { margin: 14px 0; }
+  .section-title { font-size: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #999; padding-bottom: 4px; margin-bottom: 8px; }
+  table { width: 100%; border-collapse: collapse; }
+  td { padding: 5px 8px; vertical-align: top; }
+  td:first-child { width: 42%; color: #555; }
+  td:last-child { font-weight: 600; }
+  .value-box { background: #f5f5f5; border: 1px solid #ddd; border-radius: 6px; padding: 10px 14px; margin: 10px 0; }
+  .value-box .amount { font-size: 20px; font-weight: bold; color: #1a6a42; }
+  .terms { font-size: 10.5px; line-height: 1.7; color: #444; margin-top: 6px; }
+  .terms ol { margin: 4px 0; padding-left: 18px; }
+  .sign-area { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 32px; }
+  .sign-box { text-align: center; }
+  .sign-line { border-top: 1px solid #333; margin-top: 60px; padding-top: 4px; }
+  .watermark { position: fixed; bottom: 40px; right: 40px; opacity: 0.05; font-size: 60px; font-weight: bold; transform: rotate(-30deg); color: #000; pointer-events: none; }
+  @media print { body { margin: 20px; } }
+</style>
+</head>
+<body>
+<div class="watermark">SHIELA GADAI</div>
+<div class="header">
+  <div class="logo-area">
+    <img src="https://grazia-prod.oss-ap-southeast-1.aliyuncs.com/resources/uid_100059471/b1dd8944-57af-49.png" crossorigin="anonymous" />
+    <div>
+      <h1>SHIELA GADAI SYARIAH</h1>
+      <h2>Jasa Gadai Berbasis Prinsip Syariah Islam — Bebas Riba</h2>
+    </div>
+  </div>
+  <div class="nomor">AKAD GADAI SYARIAH (RAHN) — ${trx.nomor_transaksi}</div>
+</div>
+
+<div class="section">
+  <div class="section-title">Data Akad</div>
+  <table>
+    <tr><td>Tanggal Akad</td><td>${today}</td></tr>
+    <tr><td>Cabang</td><td>${trx.cabang_nama || "Cabang Pusat"}</td></tr>
+    <tr><td>No. Transaksi</td><td>${trx.nomor_transaksi}</td></tr>
+  </table>
+</div>
+
+<div class="section">
+  <div class="section-title">Pihak Pertama — Rahin (Nasabah)</div>
+  <table>
+    <tr><td>Nama Lengkap</td><td>${trx.nasabah_nama || "-"}</td></tr>
+  </table>
+</div>
+
+<div class="section">
+  <div class="section-title">Barang Jaminan — Marhun</div>
+  <table>
+    <tr><td>Nama Barang</td><td>${trx.barang_nama || "-"}</td></tr>
+    <tr><td>Kondisi</td><td>Baik (sesuai kesepakatan)</td></tr>
+    <tr><td>Lokasi Simpan</td><td>${trx.cabang_nama || "Cabang Pusat"}</td></tr>
+  </table>
+</div>
+
+<div class="section">
+  <div class="section-title">Rincian Pembiayaan</div>
+  <div class="value-box">
+    <div style="color:#555;font-size:11px;margin-bottom:2px;">Nilai Pinjaman (Marhun Bih)</div>
+    <div class="amount">Rp ${terbilang(trx.nilai_pinjaman)}</div>
+  </div>
+  <table>
+    <tr><td>Ujrah per Bulan</td><td>Rp ${terbilang(trx.ujrah_per_bulan)} (${((trx.ujrah_per_bulan/trx.nilai_pinjaman)*100).toFixed(1)}%/bulan)</td></tr>
+    <tr><td>Total Ujrah</td><td>Rp ${terbilang(ujrahTotal)}</td></tr>
+    <tr><td>Tanggal Gadai</td><td>${trx.tanggal_gadai}</td></tr>
+    <tr><td>Jatuh Tempo</td><td><strong>${trx.tanggal_jatuh_tempo}</strong></td></tr>
+  </table>
+</div>
+
+<div class="section">
+  <div class="section-title">Ketentuan Akad Rahn Syariah</div>
+  <div class="terms">
+    <ol>
+      <li>Akad ini dilaksanakan atas dasar prinsip syariah Islam dengan sistem <strong>Rahn</strong> (gadai syariah) yang bebas dari unsur riba.</li>
+      <li>Nasabah (Rahin) menyerahkan barang jaminan (Marhun) kepada Shiela Gadai Syariah (Murtahin) sebagai jaminan atas pinjaman yang diterima.</li>
+      <li>Biaya penyimpanan dan pemeliharaan (Ujrah) sebesar <strong>Rp ${terbilang(trx.ujrah_per_bulan)}/bulan</strong> dihitung dari nilai taksiran barang jaminan.</li>
+      <li>Nasabah berhak menebus barang jaminan kapan saja dengan membayar pokok pinjaman beserta ujrah yang telah berjalan.</li>
+      <li>Jika nasabah tidak dapat menebus dalam waktu yang ditentukan, nasabah dapat mengajukan perpanjangan akad.</li>
+      <li>Apabila nasabah tidak menebus atau memperpanjang setelah jatuh tempo, murtahin berhak menjual barang jaminan melalui lelang terbuka untuk menutupi nilai pinjaman.</li>
+      <li>Kelebihan hasil penjaulan lelang dari nilai pinjaman akan dikembalikan kepada nasabah.</li>
+      <li>Akad ini dibuat dan ditandatangani dengan kesadaran penuh dan tanpa paksaan dari kedua belah pihak.</li>
+    </ol>
+  </div>
+</div>
+
+<div class="sign-area">
+  <div class="sign-box">
+    <p>Pihak Kedua — Murtahin</p>
+    <p style="color:#555;font-size:10px;">Shiela Gadai Syariah</p>
+    <div class="sign-line">
+      <strong>( __________________ )</strong>
+      <p style="font-size:10px;color:#555;">Kepala Cabang / Pengelola</p>
+    </div>
+  </div>
+  <div class="sign-box">
+    <p>Pihak Pertama — Rahin</p>
+    <p style="color:#555;font-size:10px;">${trx.nasabah_nama || "Nasabah"}</p>
+    <div class="sign-line">
+      <strong>( __________________ )</strong>
+      <p style="font-size:10px;color:#555;">Tanda Tangan / Cap Jempol</p>
+    </div>
+  </div>
+</div>
+
+<p style="text-align:center;margin-top:24px;font-size:10px;color:#999;">
+  Dokumen ini dicetak pada ${today} — Shiela Gadai Syariah · Sistem Informasi Gadai Syariah
+</p>
+</body>
+</html>`;
+}
 
 export default function TransaksiPage() {
   const { toast } = useToast();
@@ -28,7 +156,9 @@ export default function TransaksiPage() {
   const [open, setOpen] = useState(false);
   const [viewOpen, setViewOpen] = useState(false);
   const [selected, setSelected] = useState<TransaksiGadai | null>(null);
-  const [transaksiList, setTransaksiList] = useState<TransaksiGadai[]>(dummyTransaksi);
+  const [transaksiList, setTransaksiList] = useLocalStorage<TransaksiGadai[]>("shiela-transaksi", dummyTransaksi);
+  const [nasabahList] = useLocalStorage("shiela-nasabah", dummyNasabah);
+  const [barangList] = useLocalStorage("shiela-barang", dummyBarang);
 
   const [form, setForm] = useState({
     nasabah_id: "nsb-001", barang_id: "brg-001", cabang_id: "cbg-001",
@@ -50,36 +180,74 @@ export default function TransaksiPage() {
   const paginated = filtered.slice((page - 1) * perPage, page * perPage);
   const totalPages = Math.ceil(filtered.length / perPage);
 
+  const buildTransaction = () => {
+    const nasabah = (nasabahList as typeof dummyNasabah).find(n => n.id === form.nasabah_id) || dummyNasabah.find(n => n.id === form.nasabah_id);
+    const barang = (barangList as typeof dummyBarang).find(b => b.id === form.barang_id) || dummyBarang.find(b => b.id === form.barang_id);
+    const cabang = dummyCabang.find(c => c.id === form.cabang_id);
+    const jatuhTempo = new Date(form.tanggal_gadai);
+    jatuhTempo.setMonth(jatuhTempo.getMonth() + parseInt(form.durasi_bulan));
+    const ujrahPerBulan = form.ujrah_per_bulan ? parseFloat(form.ujrah_per_bulan) : ujrahEstimasi;
+    return {
+      newTrx: {
+        id: `trx-${Date.now()}`,
+        nomor_transaksi: `TRX-2026-${String(transaksiList.length + 1).padStart(3, "0")}`,
+        nasabah_id: form.nasabah_id,
+        nasabah_nama: nasabah?.nama_lengkap,
+        barang_id: form.barang_id,
+        barang_nama: barang?.nama_barang,
+        cabang_id: form.cabang_id,
+        cabang_nama: cabang?.nama_cabang,
+        nilai_pinjaman: parseFloat(form.nilai_pinjaman),
+        ujrah_per_bulan: ujrahPerBulan,
+        tanggal_gadai: form.tanggal_gadai,
+        tanggal_jatuh_tempo: jatuhTempo.toISOString().split("T")[0],
+        status: "aktif" as const,
+        created_at: new Date().toISOString().split("T")[0],
+      } as TransaksiGadai,
+      ujrahTotal: ujrahPerBulan * parseInt(form.durasi_bulan),
+    };
+  };
+
   const handleSave = () => {
     if (!form.nilai_pinjaman || !form.nasabah_id) {
       toast({ title: "Error", description: "Isi semua field yang wajib.", variant: "destructive" });
       return;
     }
-    const nasabah = dummyNasabah.find(n => n.id === form.nasabah_id);
-    const barang = dummyBarang.find(b => b.id === form.barang_id);
-    const cabang = dummyCabang.find(c => c.id === form.cabang_id);
-    const jatuhTempo = new Date(form.tanggal_gadai);
-    jatuhTempo.setMonth(jatuhTempo.getMonth() + parseInt(form.durasi_bulan));
-
-    const newTrx: TransaksiGadai = {
-      id: `trx-${Date.now()}`,
-      nomor_transaksi: `TRX-2026-${String(transaksiList.length + 1).padStart(3, "0")}`,
-      nasabah_id: form.nasabah_id,
-      nasabah_nama: nasabah?.nama_lengkap,
-      barang_id: form.barang_id,
-      barang_nama: barang?.nama_barang,
-      cabang_id: form.cabang_id,
-      cabang_nama: cabang?.nama_cabang,
-      nilai_pinjaman: parseFloat(form.nilai_pinjaman),
-      ujrah_per_bulan: form.ujrah_per_bulan ? parseFloat(form.ujrah_per_bulan) : ujrahEstimasi,
-      tanggal_gadai: form.tanggal_gadai,
-      tanggal_jatuh_tempo: jatuhTempo.toISOString().split("T")[0],
-      status: "aktif",
-      created_at: new Date().toISOString().split("T")[0],
-    };
+    const { newTrx } = buildTransaction();
     setTransaksiList([...transaksiList, newTrx]);
     setOpen(false);
-    toast({ title: "Berhasil", description: `Transaksi ${newTrx.nomor_transaksi} berhasil dibuat.` });
+    toast({ title: "Berhasil", description: `Transaksi ${newTrx.nomor_transaksi} berhasil disimpan.` });
+  };
+
+  const handleBuatAkad = () => {
+    if (!form.nilai_pinjaman || !form.nasabah_id) {
+      toast({ title: "Error", description: "Isi semua field yang wajib.", variant: "destructive" });
+      return;
+    }
+    const { newTrx, ujrahTotal } = buildTransaction();
+    setTransaksiList([...transaksiList, newTrx]);
+    setOpen(false);
+
+    // Generate & print akad in new window
+    const akadHtml = generateAkadHtml(newTrx, ujrahTotal);
+    const win = window.open("", "_blank", "width=850,height=700");
+    if (win) {
+      win.document.write(akadHtml);
+      win.document.close();
+      setTimeout(() => { win.focus(); win.print(); }, 600);
+    }
+    toast({ title: "Akad dibuat!", description: `${newTrx.nomor_transaksi} — Dialog cetak akan terbuka.` });
+  };
+
+  const handleCetakAkad = (trx: TransaksiGadai) => {
+    const ujrahTotal = trx.ujrah_per_bulan * 3; // estimate
+    const akadHtml = generateAkadHtml(trx, ujrahTotal);
+    const win = window.open("", "_blank", "width=850,height=700");
+    if (win) {
+      win.document.write(akadHtml);
+      win.document.close();
+      setTimeout(() => { win.focus(); win.print(); }, 600);
+    }
   };
 
   const handlePerpanjang = (trx: TransaksiGadai) => {
@@ -129,14 +297,20 @@ export default function TransaksiPage() {
                 <Label>Nasabah *</Label>
                 <Select value={form.nasabah_id} onValueChange={v => setForm({...form, nasabah_id: v})}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{dummyNasabah.map(n => <SelectItem key={n.id} value={n.id}>{n.nama_lengkap}</SelectItem>)}</SelectContent>
+                  <SelectContent>
+                    {(nasabahList as typeof dummyNasabah).map(n => <SelectItem key={n.id} value={n.id}>{n.nama_lengkap}</SelectItem>)}
+                  </SelectContent>
                 </Select>
               </div>
               <div className="col-span-2 space-y-1.5">
                 <Label>Barang Jaminan *</Label>
                 <Select value={form.barang_id} onValueChange={v => setForm({...form, barang_id: v})}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{dummyBarang.filter(b => b.status === "aktif").map(b => <SelectItem key={b.id} value={b.id}>{b.nama_barang} - {b.kode_barang}</SelectItem>)}</SelectContent>
+                  <SelectContent>
+                    {(barangList as typeof dummyBarang).filter(b => b.status === "aktif").map(b => (
+                      <SelectItem key={b.id} value={b.id}>{b.nama_barang} — {b.kode_barang}</SelectItem>
+                    ))}
+                  </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1.5">
@@ -145,7 +319,7 @@ export default function TransaksiPage() {
               </div>
               <div className="space-y-1.5">
                 <Label>Ujrah/Bulan (Rp)</Label>
-                <Input type="number" placeholder={ujrahEstimasi.toString()} value={form.ujrah_per_bulan} onChange={e => setForm({...form, ujrah_per_bulan: e.target.value})} />
+                <Input type="number" placeholder={ujrahEstimasi ? String(ujrahEstimasi) : "otomatis 2%"} value={form.ujrah_per_bulan} onChange={e => setForm({...form, ujrah_per_bulan: e.target.value})} />
               </div>
               <div className="space-y-1.5">
                 <Label>Tanggal Gadai</Label>
@@ -156,10 +330,7 @@ export default function TransaksiPage() {
                 <Select value={form.durasi_bulan} onValueChange={v => setForm({...form, durasi_bulan: v})}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="1">1 Bulan</SelectItem>
-                    <SelectItem value="2">2 Bulan</SelectItem>
-                    <SelectItem value="3">3 Bulan</SelectItem>
-                    <SelectItem value="4">4 Bulan</SelectItem>
+                    {["1","2","3","4"].map(v => <SelectItem key={v} value={v}>{v} Bulan</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -182,7 +353,10 @@ export default function TransaksiPage() {
             </div>
             <div className="flex gap-2 justify-end mt-4">
               <Button variant="outline" onClick={() => setOpen(false)}>Batal</Button>
-              <Button className="gradient-primary shadow-emerald gap-2" onClick={handleSave}>
+              <Button variant="outline" className="gap-2" onClick={handleSave}>
+                Simpan Saja
+              </Button>
+              <Button className="gradient-primary shadow-emerald gap-2" onClick={handleBuatAkad}>
                 <FileText className="w-4 h-4" /> Buat Akad
               </Button>
             </div>
@@ -198,7 +372,8 @@ export default function TransaksiPage() {
           { label: "Macet", value: stats.macet, color: "bg-destructive/10 text-destructive border-destructive/20" },
           { label: "Lunas", value: stats.lunas, color: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" },
         ].map((s) => (
-          <button key={s.label} onClick={() => { setFilterStatus(s.label === "Aktif" ? "aktif" : s.label === "Macet" ? "macet" : s.label === "Lunas" ? "lunas" : "all"); setPage(1); }}
+          <button key={s.label}
+            onClick={() => { setFilterStatus(s.label === "Aktif" ? "aktif" : s.label === "Macet" ? "macet" : s.label === "Lunas" ? "lunas" : "all"); setPage(1); }}
             className={cn("p-3 rounded-xl border text-left transition-smooth hover:scale-[1.02]", s.color)}>
             <p className="text-2xl font-bold">{s.value}</p>
             <p className="text-xs font-medium opacity-80">{s.label}</p>
@@ -221,7 +396,6 @@ export default function TransaksiPage() {
                 <SelectItem value="diperpanjang">Diperpanjang</SelectItem>
                 <SelectItem value="lunas">Lunas</SelectItem>
                 <SelectItem value="macet">Macet</SelectItem>
-                <SelectItem value="lelang">Lelang</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -248,9 +422,7 @@ export default function TransaksiPage() {
                   </td></tr>
                 ) : paginated.map((t) => (
                   <tr key={t.id} className="hover:bg-muted/30 transition-smooth">
-                    <td className="px-4 py-3.5">
-                      <span className="text-sm font-medium text-primary">{t.nomor_transaksi}</span>
-                    </td>
+                    <td className="px-4 py-3.5"><span className="text-sm font-medium text-primary">{t.nomor_transaksi}</span></td>
                     <td className="px-4 py-3.5">
                       <div>
                         <p className="text-sm font-medium text-foreground">{t.nasabah_nama}</p>
@@ -260,15 +432,9 @@ export default function TransaksiPage() {
                     <td className="px-4 py-3.5 hidden md:table-cell">
                       <span className="text-sm text-muted-foreground truncate max-w-[140px] block">{t.barang_nama}</span>
                     </td>
-                    <td className="px-4 py-3.5 text-right">
-                      <span className="text-sm font-semibold">{formatCurrency(t.nilai_pinjaman)}</span>
-                    </td>
-                    <td className="px-4 py-3.5 text-right hidden md:table-cell">
-                      <span className="text-sm text-muted-foreground">{formatCurrency(t.ujrah_per_bulan)}</span>
-                    </td>
-                    <td className="px-4 py-3.5 text-center hidden sm:table-cell">
-                      <span className="text-xs text-muted-foreground">{formatDate(t.tanggal_jatuh_tempo)}</span>
-                    </td>
+                    <td className="px-4 py-3.5 text-right"><span className="text-sm font-semibold">{formatCurrency(t.nilai_pinjaman)}</span></td>
+                    <td className="px-4 py-3.5 text-right hidden md:table-cell"><span className="text-sm text-muted-foreground">{formatCurrency(t.ujrah_per_bulan)}</span></td>
+                    <td className="px-4 py-3.5 text-center hidden sm:table-cell"><span className="text-xs text-muted-foreground">{formatDate(t.tanggal_jatuh_tempo)}</span></td>
                     <td className="px-4 py-3.5 text-center">
                       <span className={cn("inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border", getStatusTransaksiColor(t.status))}>
                         {getLabelStatus(t.status)}
@@ -279,7 +445,7 @@ export default function TransaksiPage() {
                         <Button variant="ghost" size="icon" className="w-8 h-8 text-muted-foreground hover:text-primary" onClick={() => { setSelected(t); setViewOpen(true); }}>
                           <Eye className="w-4 h-4" />
                         </Button>
-                        {t.status === "aktif" && (
+                        {(t.status === "aktif" || t.status === "diperpanjang") && (
                           <>
                             <Button variant="ghost" size="icon" className="w-8 h-8 text-muted-foreground hover:text-blue-600" onClick={() => handlePerpanjang(t)}>
                               <RefreshCw className="w-4 h-4" />
@@ -320,9 +486,7 @@ export default function TransaksiPage() {
               <div className="p-4 rounded-xl gradient-primary text-primary-foreground">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs opacity-80 font-medium uppercase">Nomor Transaksi</span>
-                  <span className={cn("px-2 py-0.5 rounded-full text-xs font-medium bg-white/20")}>
-                    {getLabelStatus(selected.status)}
-                  </span>
+                  <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-white/20">{getLabelStatus(selected.status)}</span>
                 </div>
                 <h3 className="text-xl font-bold">{selected.nomor_transaksi}</h3>
                 <p className="text-sm opacity-80 mt-1">{selected.tanggal_gadai} · {selected.cabang_nama}</p>
@@ -339,10 +503,10 @@ export default function TransaksiPage() {
                 )}
               </div>
               <div className="flex gap-2 pt-2">
-                <Button variant="outline" size="sm" className="gap-2 flex-1">
+                <Button variant="outline" size="sm" className="gap-2 flex-1" onClick={() => handleCetakAkad(selected)}>
                   <Printer className="w-4 h-4" /> Cetak Akad
                 </Button>
-                <Button variant="outline" size="sm" className="gap-2 flex-1">
+                <Button variant="outline" size="sm" className="gap-2 flex-1" onClick={() => handleCetakAkad(selected)}>
                   <FileText className="w-4 h-4" /> Bukti PDF
                 </Button>
               </div>

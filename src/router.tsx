@@ -6,6 +6,7 @@ import NasabahPage from "./pages/NasabahPage";
 import BarangPage from "./pages/BarangPage";
 import TransaksiPage from "./pages/TransaksiPage";
 import PembayaranPage from "./pages/PembayaranPage";
+import ArusKasPage from "./pages/ArusKasPage";
 import LaporanPage from "./pages/LaporanPage";
 import CabangPage from "./pages/CabangPage";
 import PengaturanPage from "./pages/PengaturanPage";
@@ -31,6 +32,7 @@ export const routers = [
       { path: "transaksi", element: <TransaksiPage /> },
       { path: "pembayaran", element: <PembayaranPage /> },
       { path: "laporan", element: <LaporanPage /> },
+      { path: "arus-kas", element: <ArusKasPage /> },
       { path: "cabang", element: <CabangPage /> },
       { path: "pengaturan", element: <PengaturanPage /> },
       { path: "profile", element: <ProfilePage /> },
