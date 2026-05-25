@@ -1,12 +1,19 @@
 import { useState } from "react";
 import { dummyCabang, Cabang, formatCurrency } from "@/lib/dummy-data";
+import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Building2, Plus, Search, Edit, Eye, Phone, Mail, MapPin, Users, HandCoins } from "lucide-react";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Building2, Plus, Search, Edit, Eye, Phone, Mail, MapPin, Users, HandCoins, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
@@ -14,14 +21,19 @@ const emptyForm = { nama_cabang: "", kode_cabang: "", alamat: "", telepon: "", e
 
 export default function CabangPage() {
   const { toast } = useToast();
+  const { profile } = useAuth();
+  const canEditDana = profile?.role === "owner" || profile?.role === "super_admin";
+
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [viewOpen, setViewOpen] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [selected, setSelected] = useState<Cabang | null>(null);
   const [cabangList, setCabangList] = useState<Cabang[]>(dummyCabang);
   const [form, setForm] = useState(emptyForm);
   const [editForm, setEditForm] = useState(emptyForm);
+  const [editTotalDana, setEditTotalDana] = useState("");
 
   const filtered = cabangList.filter(
     c => c.nama_cabang.toLowerCase().includes(search.toLowerCase()) || c.kode_cabang.toLowerCase().includes(search.toLowerCase())
@@ -55,6 +67,7 @@ export default function CabangPage() {
       email: cabang.email,
       kepala_cabang: cabang.kepala_cabang,
     });
+    setEditTotalDana(String(cabang.total_pinjaman || 0));
     setEditOpen(true);
   };
 
@@ -63,12 +76,26 @@ export default function CabangPage() {
       toast({ title: "Error", description: "Nama dan kode cabang wajib diisi.", variant: "destructive" });
       return;
     }
+    const totalDana = canEditDana ? parseFloat(editTotalDana) || 0 : selected?.total_pinjaman || 0;
     setCabangList(cabangList.map(c =>
-      c.id === selected?.id ? { ...c, ...editForm } : c
+      c.id === selected?.id ? { ...c, ...editForm, total_pinjaman: totalDana } : c
     ));
     setEditOpen(false);
     setSelected(null);
     toast({ title: "Berhasil", description: "Data cabang berhasil diperbarui." });
+  };
+
+  const handleDelete = () => {
+    if (!deleteId) return;
+    const cabang = cabangList.find(c => c.id === deleteId);
+    if (cabang?.kode_cabang === "CBG-001") {
+      toast({ title: "Tidak dapat dihapus", description: "Cabang Pusat tidak dapat dihapus.", variant: "destructive" });
+      setDeleteId(null);
+      return;
+    }
+    setCabangList(cabangList.filter(c => c.id !== deleteId));
+    setDeleteId(null);
+    toast({ title: "Berhasil", description: "Cabang berhasil dihapus." });
   };
 
   const CabangFormFields = ({ data, onChange }: { data: typeof emptyForm; onChange: (d: typeof emptyForm) => void }) => (
@@ -192,6 +219,15 @@ export default function CabangPage() {
                   onClick={() => openEdit(cabang)}>
                   <Edit className="w-3.5 h-3.5" /> Edit
                 </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 text-xs text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
+                  onClick={() => setDeleteId(cabang.id)}
+                  disabled={cabang.kode_cabang === "CBG-001"}
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -210,6 +246,22 @@ export default function CabangPage() {
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>Edit Cabang — {selected?.nama_cabang}</DialogTitle></DialogHeader>
           <CabangFormFields data={editForm} onChange={setEditForm} />
+          {canEditDana && (
+            <div className="mt-2 space-y-1.5">
+              <Label className="flex items-center gap-1.5">
+                Total Dana (Rp)
+                <span className="text-xs text-gold font-normal bg-gold/10 px-1.5 py-0.5 rounded border border-gold/20">
+                  Owner Only
+                </span>
+              </Label>
+              <Input
+                type="number"
+                placeholder="0"
+                value={editTotalDana}
+                onChange={e => setEditTotalDana(e.target.value)}
+              />
+            </div>
+          )}
           <div className="flex gap-2 justify-end mt-4">
             <Button variant="outline" onClick={() => setEditOpen(false)}>Batal</Button>
             <Button className="gradient-primary shadow-emerald" onClick={handleEdit}>Perbarui</Button>
@@ -265,6 +317,27 @@ export default function CabangPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus Cabang?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tindakan ini tidak dapat dibatalkan. Semua data yang terkait dengan cabang ini akan ikut terhapus.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Hapus
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { routers } from "./router";
 import { AuthProvider } from "./hooks/use-auth";
 import { ThemeProvider } from "./hooks/use-theme";
+import { CabangProvider } from "./hooks/use-cabang";
 
 const queryClient = new QueryClient();
 
@@ -15,11 +16,13 @@ const App = () => {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <AuthProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            <RouterProvider router={router} />
-          </TooltipProvider>
+          <CabangProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Sonner />
+              <RouterProvider router={router} />
+            </TooltipProvider>
+          </CabangProvider>
         </AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>
@@ -27,3 +30,4 @@ const App = () => {
 };
 
 export default App;
+

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { dummyNasabah, Nasabah, formatDate, dummyCabang } from "@/lib/dummy-data";
+import { useCabang } from "@/hooks/use-cabang";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,6 +23,7 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function NasabahPage() {
   const { toast } = useToast();
+  const { selectedCabang } = useCabang();
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [open, setOpen] = useState(false);
@@ -35,12 +37,14 @@ export default function NasabahPage() {
   });
 
   const perPage = 5;
-  const filtered = nasabahList.filter(
-    (n) =>
+  const filtered = nasabahList.filter((n) => {
+    const matchSearch =
       n.nama_lengkap.toLowerCase().includes(search.toLowerCase()) ||
       n.nik.includes(search) ||
-      n.nomor_hp.includes(search)
-  );
+      n.nomor_hp.includes(search);
+    const matchCabang = !selectedCabang || n.cabang_id === selectedCabang.id;
+    return matchSearch && matchCabang;
+  });
   const paginated = filtered.slice((page - 1) * perPage, page * perPage);
   const totalPages = Math.ceil(filtered.length / perPage);
 

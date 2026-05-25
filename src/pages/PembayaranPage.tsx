@@ -3,6 +3,7 @@ import {
   dummyPembayaran, Pembayaran, dummyTransaksi,
   formatCurrency, formatDate, getLabelStatus,
 } from "@/lib/dummy-data";
+import { useCabang } from "@/hooks/use-cabang";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -32,6 +33,7 @@ const jenisColors: Record<string, string> = {
 
 export default function PembayaranPage() {
   const { toast } = useToast();
+  const { selectedCabang } = useCabang();
   const [search, setSearch] = useState("");
   const [filterJenis, setFilterJenis] = useState("all");
   const [page, setPage] = useState(1);
@@ -48,7 +50,11 @@ export default function PembayaranPage() {
       (p.nomor_transaksi || "").toLowerCase().includes(search.toLowerCase()) ||
       (p.nasabah_nama || "").toLowerCase().includes(search.toLowerCase());
     const matchJenis = filterJenis === "all" || p.jenis_pembayaran === filterJenis;
-    return matchSearch && matchJenis;
+    const matchCabang = !selectedCabang || (() => {
+      const trx = dummyTransaksi.find(t => t.id === p.transaksi_id);
+      return trx?.cabang_id === selectedCabang.id;
+    })();
+    return matchSearch && matchJenis && matchCabang;
   });
   const paginated = filtered.slice((page - 1) * perPage, page * perPage);
   const totalPages = Math.ceil(filtered.length / perPage);
@@ -63,7 +69,7 @@ export default function PembayaranPage() {
     const trx = dummyTransaksi.find(t => t.id === form.transaksi_id);
     const newPay: Pembayaran = {
       id: `pay-${Date.now()}`,
-      nomor_pembayaran: `PAY-2024-${String(pembayaranList.length + 1).padStart(3, "0")}`,
+      nomor_pembayaran: `PAY-2026-${String(pembayaranList.length + 1).padStart(3, "0")}`,
       transaksi_id: form.transaksi_id,
       nomor_transaksi: trx?.nomor_transaksi,
       nasabah_nama: trx?.nasabah_nama,

@@ -3,6 +3,7 @@ import {
   dummyBarang, BarangJaminan, dummyNasabah, dummyCabang,
   formatCurrency, formatDate, getStatusBarangColor, getLabelStatus
 } from "@/lib/dummy-data";
+import { useCabang } from "@/hooks/use-cabang";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,6 +23,7 @@ const kategoriIcons: Record<string, string> = {
 
 export default function BarangPage() {
   const { toast } = useToast();
+  const { selectedCabang } = useCabang();
   const [search, setSearch] = useState("");
   const [filterKategori, setFilterKategori] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
@@ -43,7 +45,8 @@ export default function BarangPage() {
       (b.nasabah_nama || "").toLowerCase().includes(search.toLowerCase());
     const matchKategori = filterKategori === "all" || b.kategori === filterKategori;
     const matchStatus = filterStatus === "all" || b.status === filterStatus;
-    return matchSearch && matchKategori && matchStatus;
+    const matchCabang = !selectedCabang || b.cabang_id === selectedCabang.id;
+    return matchSearch && matchKategori && matchStatus && matchCabang;
   });
   const paginated = filtered.slice((page - 1) * perPage, page * perPage);
   const totalPages = Math.ceil(filtered.length / perPage);
@@ -56,7 +59,7 @@ export default function BarangPage() {
     const nasabah = dummyNasabah.find(n => n.id === form.nasabah_id);
     const newBarang: BarangJaminan = {
       id: `brg-${Date.now()}`,
-      kode_barang: `BRG-2024-${String(barangList.length + 1).padStart(3, "0")}`,
+      kode_barang: `BRG-2026-${String(barangList.length + 1).padStart(3, "0")}`,
       nama_barang: form.nama_barang,
       kategori: form.kategori as BarangJaminan["kategori"],
       merek: form.merek,

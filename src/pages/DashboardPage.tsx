@@ -8,18 +8,52 @@ import {
   Tooltip, ResponsiveContainer, Legend
 } from "recharts";
 import {
-  chartDataPendapatan, chartDataTransaksi, dummyTransaksi,
+  chartDataPendapatan, chartDataTransaksi, dummyTransaksi, dummyNasabah, dummyBarang, dummyCabang,
   formatCurrency, formatDate, getStatusTransaksiColor, getLabelStatus
 } from "@/lib/dummy-data";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
+import { useCabang } from "@/hooks/use-cabang";
+import { useMemo } from "react";
 
 export default function DashboardPage() {
   const { profile } = useAuth();
+  const { selectedCabang } = useCabang();
+
+  // Filter data by selected cabang
+  const transaksiData = useMemo(() => {
+    if (!selectedCabang) return dummyTransaksi;
+    return dummyTransaksi.filter(t => t.cabang_id === selectedCabang.id);
+  }, [selectedCabang]);
+
+  const nasabahData = useMemo(() => {
+    if (!selectedCabang) return dummyNasabah;
+    return dummyNasabah.filter(n => n.cabang_id === selectedCabang.id);
+  }, [selectedCabang]);
+
+  const barangData = useMemo(() => {
+    if (!selectedCabang) return dummyBarang;
+    return dummyBarang.filter(b => b.cabang_id === selectedCabang.id);
+  }, [selectedCabang]);
+
+  // Computed stats
+  const gadaiAktif = transaksiData.filter(t => t.status === "aktif" || t.status === "diperpanjang").length;
+  const totalPinjaman = transaksiData.filter(t => t.status === "aktif" || t.status === "diperpanjang").reduce((s, t) => s + t.nilai_pinjaman, 0);
+  const jatuhTempo = barangData.filter(b => b.status === "jatuh_tempo").length;
+  const macet = transaksiData.filter(t => t.status === "macet").length;
+  const totalNasabah = nasabahData.length;
+  const jumlahCabang = selectedCabang ? 1 : dummyCabang.length;
+
+  const formatRingkas = (v: number) => {
+    if (v >= 1_000_000_000) return `Rp ${(v / 1_000_000_000).toFixed(1)}M`;
+    if (v >= 1_000_000) return `Rp ${(v / 1_000_000).toFixed(1)}Jt`;
+    return formatCurrency(v);
+  };
+
+  const cabangLabel = selectedCabang ? selectedCabang.nama_cabang : "Semua Cabang";
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -29,23 +63,17 @@ export default function DashboardPage() {
           <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
           <p className="text-muted-foreground text-sm">
             Selamat datang, <span className="text-primary font-medium">{profile?.nama_lengkap || "Admin"}</span>
+            {selectedCabang && (
+              <span className="ml-2 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full border border-primary/20">
+                {selectedCabang.nama_cabang}
+              </span>
+            )}
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Select defaultValue="all">
-            <SelectTrigger className="w-40 h-9 text-sm">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Semua Cabang</SelectItem>
-              <SelectItem value="cbg-001">Cabang Pusat</SelectItem>
-              <SelectItem value="cbg-002">Bandung</SelectItem>
-              <SelectItem value="cbg-003">Surabaya</SelectItem>
-            </SelectContent>
-          </Select>
           <Button variant="outline" size="sm" className="h-9 gap-2">
             <Activity className="w-4 h-4" />
-            Hari Ini
+            {cabangLabel}
           </Button>
         </div>
       </div>
@@ -54,7 +82,7 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatsCard
           title="Gadai Aktif"
-          value="142"
+          value={String(gadaiAktif)}
           subtitle="Transaksi berjalan"
           icon={HandCoins}
           variant="primary"
@@ -62,7 +90,7 @@ export default function DashboardPage() {
         />
         <StatsCard
           title="Total Pinjaman"
-          value="Rp 1,2M"
+          value={formatRingkas(totalPinjaman)}
           subtitle="Dana tersalurkan"
           icon={Banknote}
           variant="gold"
@@ -70,7 +98,7 @@ export default function DashboardPage() {
         />
         <StatsCard
           title="Jatuh Tempo"
-          value="18"
+          value={String(jatuhTempo)}
           subtitle="Perlu tindak lanjut"
           icon={Clock}
           variant="warning"
@@ -78,7 +106,7 @@ export default function DashboardPage() {
         />
         <StatsCard
           title="Barang Macet"
-          value="7"
+          value={String(macet)}
           subtitle="Perlu perhatian"
           icon={AlertTriangle}
           variant="danger"
@@ -91,13 +119,13 @@ export default function DashboardPage() {
         <StatsCard
           title="Pemasukan Ujrah"
           value="Rp 52,4Jt"
-          subtitle="Bulan Mei 2024"
+          subtitle="Bulan Mei 2026"
           icon={TrendingUp}
           trend={{ value: 6.8, label: "vs April" }}
         />
         <StatsCard
           title="Total Nasabah"
-          value="1.247"
+          value={String(totalNasabah)}
           subtitle="Nasabah terdaftar"
           icon={Users}
           trend={{ value: 4.1, label: "baru bulan ini" }}
@@ -110,8 +138,8 @@ export default function DashboardPage() {
         />
         <StatsCard
           title="Jumlah Cabang"
-          value="4"
-          subtitle="Cabang aktif"
+          value={String(jumlahCabang)}
+          subtitle={selectedCabang ? "Cabang terpilih" : "Cabang aktif"}
           icon={Building2}
         />
       </div>
@@ -122,16 +150,8 @@ export default function DashboardPage() {
         <Card className="lg:col-span-2 shadow-sm">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base font-semibold">Grafik Pendapatan Bulanan</CardTitle>
-              <Select defaultValue="2024">
-                <SelectTrigger className="w-24 h-8 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="2024">2024</SelectItem>
-                  <SelectItem value="2023">2023</SelectItem>
-                </SelectContent>
-              </Select>
+              <CardTitle className="text-base font-semibold">Grafik Pendapatan Bulanan 2026</CardTitle>
+              <Badge variant="outline" className="text-xs">2026</Badge>
             </div>
           </CardHeader>
           <CardContent>
@@ -166,22 +186,8 @@ export default function DashboardPage() {
                   formatter={(v: number) => [formatCurrency(v), ""]}
                 />
                 <Legend wrapperStyle={{ fontSize: "12px" }} />
-                <Area
-                  type="monotone"
-                  dataKey="ujrah"
-                  name="Ujrah"
-                  stroke="hsl(158, 64%, 32%)"
-                  strokeWidth={2}
-                  fill="url(#ujrahGrad)"
-                />
-                <Area
-                  type="monotone"
-                  dataKey="pinjaman"
-                  name="Pinjaman Baru"
-                  stroke="hsl(43, 96%, 50%)"
-                  strokeWidth={2}
-                  fill="url(#pinjamanGrad)"
-                />
+                <Area type="monotone" dataKey="ujrah" name="Ujrah" stroke="hsl(158, 64%, 32%)" strokeWidth={2} fill="url(#ujrahGrad)" />
+                <Area type="monotone" dataKey="pinjaman" name="Pinjaman Baru" stroke="hsl(43, 96%, 50%)" strokeWidth={2} fill="url(#pinjamanGrad)" />
               </AreaChart>
             </ResponsiveContainer>
           </CardContent>
@@ -220,7 +226,12 @@ export default function DashboardPage() {
       <Card className="shadow-sm">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-base font-semibold">Transaksi Terbaru</CardTitle>
+            <CardTitle className="text-base font-semibold">
+              Transaksi Terbaru
+              {selectedCabang && (
+                <span className="ml-2 text-xs font-normal text-muted-foreground">— {selectedCabang.nama_cabang}</span>
+              )}
+            </CardTitle>
             <Button variant="ghost" size="sm" className="text-primary text-sm h-8">
               Lihat Semua
             </Button>
@@ -240,7 +251,7 @@ export default function DashboardPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {dummyTransaksi.slice(0, 6).map((trx) => (
+                {transaksiData.slice(0, 6).map((trx) => (
                   <tr key={trx.id} className="hover:bg-muted/30 transition-smooth">
                     <td className="px-6 py-3.5">
                       <span className="text-sm font-medium text-primary">{trx.nomor_transaksi}</span>
@@ -267,6 +278,13 @@ export default function DashboardPage() {
                     </td>
                   </tr>
                 ))}
+                {transaksiData.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-10 text-center text-sm text-muted-foreground">
+                      Tidak ada transaksi untuk cabang ini
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

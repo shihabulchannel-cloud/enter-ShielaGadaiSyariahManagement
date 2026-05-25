@@ -4,6 +4,7 @@ import {
   TransaksiGadai, formatCurrency, formatDate,
   getStatusTransaksiColor, getLabelStatus,
 } from "@/lib/dummy-data";
+import { useCabang } from "@/hooks/use-cabang";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,6 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function TransaksiPage() {
   const { toast } = useToast();
+  const { selectedCabang } = useCabang();
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [page, setPage] = useState(1);
@@ -42,7 +44,8 @@ export default function TransaksiPage() {
       (t.nasabah_nama || "").toLowerCase().includes(search.toLowerCase()) ||
       (t.barang_nama || "").toLowerCase().includes(search.toLowerCase());
     const matchStatus = filterStatus === "all" || t.status === filterStatus;
-    return matchSearch && matchStatus;
+    const matchCabang = !selectedCabang || t.cabang_id === selectedCabang.id;
+    return matchSearch && matchStatus && matchCabang;
   });
   const paginated = filtered.slice((page - 1) * perPage, page * perPage);
   const totalPages = Math.ceil(filtered.length / perPage);
@@ -60,7 +63,7 @@ export default function TransaksiPage() {
 
     const newTrx: TransaksiGadai = {
       id: `trx-${Date.now()}`,
-      nomor_transaksi: `TRX-2024-${String(transaksiList.length + 1).padStart(3, "0")}`,
+      nomor_transaksi: `TRX-2026-${String(transaksiList.length + 1).padStart(3, "0")}`,
       nasabah_id: form.nasabah_id,
       nasabah_nama: nasabah?.nama_lengkap,
       barang_id: form.barang_id,
