@@ -12,7 +12,6 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
-  Gem,
   LogOut,
   UserCircle,
   HandCoins,
@@ -61,8 +60,13 @@ export function Sidebar() {
     >
       {/* Logo */}
       <div className="flex items-center gap-3 px-4 py-5 border-b border-sidebar-border">
-        <div className="flex-shrink-0 w-9 h-9 rounded-xl bg-gradient-to-br from-gold to-gold-light flex items-center justify-center shadow-gold">
-          <Gem className="w-5 h-5 text-gold-foreground" />
+        <div className="flex-shrink-0 w-9 h-9 rounded-xl overflow-hidden bg-white flex items-center justify-center shadow-gold">
+          <img
+            src="https://grazia-prod.oss-ap-southeast-1.aliyuncs.com/resources/uid_100059471/b1dd8944-57af-49.png"
+            alt="Shiela Gadai Syariah"
+            crossOrigin="anonymous"
+            className="w-8 h-8 object-contain"
+          />
         </div>
         {!collapsed && (
           <div className="animate-fade-in overflow-hidden">

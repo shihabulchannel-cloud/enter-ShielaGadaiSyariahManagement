@@ -8,19 +8,24 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   Settings, Building2, Users, Shield, Bell, Database,
-  Save, RefreshCw, Trash2, Plus, CheckCircle,
+  Save, RefreshCw, Trash2, Plus, CheckCircle, Eye, EyeOff,
 } from "lucide-react";
 import { useTheme } from "@/hooks/use-theme";
 import { useToast } from "@/hooks/use-toast";
 import { getLabelStatus } from "@/lib/dummy-data";
 
-const defaultUsers = [
+type UserEntry = { id: string; name: string; email: string; role: string; status: string };
+
+const initialUsers: UserEntry[] = [
   { id: "u1", name: "Budi Santoso", email: "budi@shielagadai.com", role: "admin_cabang", status: "aktif" },
   { id: "u2", name: "Siti Rahayu", email: "siti@shielagadai.com", role: "kasir", status: "aktif" },
   { id: "u3", name: "Ahmad Fauzi", email: "ahmad@shielagadai.com", role: "kasir", status: "aktif" },
 ];
+
+const emptyUser = { name: "", email: "", password: "", role: "kasir", cabang: "" };
 
 export default function PengaturanPage() {
   const { theme, toggleTheme } = useTheme();
@@ -30,6 +35,10 @@ export default function PengaturanPage() {
   const [notifMacet, setNotifMacet] = useState(true);
   const [ujrahRate, setUjrahRate] = useState("2");
   const [maxDurasi, setMaxDurasi] = useState("4");
+  const [users, setUsers] = useState<UserEntry[]>(initialUsers);
+  const [addUserOpen, setAddUserOpen] = useState(false);
+  const [userForm, setUserForm] = useState(emptyUser);
+  const [showPw, setShowPw] = useState(false);
 
   const handleSave = () => {
     toast({ title: "Berhasil", description: "Pengaturan berhasil disimpan." });
@@ -37,6 +46,33 @@ export default function PengaturanPage() {
 
   const handleBackup = () => {
     toast({ title: "Backup", description: "Backup database sedang diproses..." });
+  };
+
+  const handleAddUser = () => {
+    if (!userForm.name || !userForm.email || !userForm.password) {
+      toast({ title: "Error", description: "Nama, email, dan password wajib diisi.", variant: "destructive" });
+      return;
+    }
+    if (userForm.password.length < 6) {
+      toast({ title: "Error", description: "Password minimal 6 karakter.", variant: "destructive" });
+      return;
+    }
+    const newUser: UserEntry = {
+      id: `u${Date.now()}`,
+      name: userForm.name,
+      email: userForm.email,
+      role: userForm.role,
+      status: "aktif",
+    };
+    setUsers([...users, newUser]);
+    setAddUserOpen(false);
+    setUserForm(emptyUser);
+    toast({ title: "Berhasil", description: `User ${userForm.name} berhasil ditambahkan.` });
+  };
+
+  const handleDeleteUser = (id: string) => {
+    setUsers(users.filter(u => u.id !== id));
+    toast({ title: "Dihapus", description: "User berhasil dihapus." });
   };
 
   return (
@@ -133,7 +169,7 @@ export default function PengaturanPage() {
                   <CardTitle className="text-base">Manajemen Pengguna</CardTitle>
                   <CardDescription>Kelola akses dan hak pengguna</CardDescription>
                 </div>
-                <Button size="sm" className="gradient-primary shadow-emerald gap-2">
+                <Button size="sm" className="gradient-primary shadow-emerald gap-2" onClick={() => setAddUserOpen(true)}>
                   <Plus className="w-4 h-4" /> Tambah User
                 </Button>
               </div>
@@ -148,7 +184,7 @@ export default function PengaturanPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {defaultUsers.map(u => (
+                  {users.map(u => (
                     <tr key={u.id} className="hover:bg-muted/30 transition-smooth">
                       <td className="px-6 py-3.5">
                         <div className="flex items-center gap-3">
@@ -174,7 +210,7 @@ export default function PengaturanPage() {
                       <td className="px-6 py-3.5 text-center">
                         <div className="flex items-center justify-center gap-1.5">
                           <Button variant="ghost" size="icon" className="w-8 h-8 text-muted-foreground hover:text-primary"><RefreshCw className="w-4 h-4" /></Button>
-                          <Button variant="ghost" size="icon" className="w-8 h-8 text-muted-foreground hover:text-destructive"><Trash2 className="w-4 h-4" /></Button>
+                          <Button variant="ghost" size="icon" className="w-8 h-8 text-muted-foreground hover:text-destructive" onClick={() => handleDeleteUser(u.id)}><Trash2 className="w-4 h-4" /></Button>
                         </div>
                       </td>
                     </tr>
@@ -280,6 +316,69 @@ export default function PengaturanPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Tambah User Dialog */}
+      <Dialog open={addUserOpen} onOpenChange={setAddUserOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Tambah Pengguna Baru</DialogTitle></DialogHeader>
+          <div className="space-y-4 mt-2">
+            <div className="space-y-1.5">
+              <Label>Nama Lengkap *</Label>
+              <Input placeholder="Nama lengkap" value={userForm.name} onChange={e => setUserForm({ ...userForm, name: e.target.value })} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Email *</Label>
+              <Input type="email" placeholder="email@shielagadai.com" value={userForm.email} onChange={e => setUserForm({ ...userForm, email: e.target.value })} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Password *</Label>
+              <div className="relative">
+                <Input
+                  type={showPw ? "text" : "password"}
+                  placeholder="Min. 6 karakter"
+                  value={userForm.password}
+                  onChange={e => setUserForm({ ...userForm, password: e.target.value })}
+                />
+                <button
+                  type="button"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowPw(!showPw)}
+                >
+                  {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Role</Label>
+              <Select value={userForm.role} onValueChange={v => setUserForm({ ...userForm, role: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="super_admin">Super Admin</SelectItem>
+                  <SelectItem value="owner">Owner</SelectItem>
+                  <SelectItem value="admin_cabang">Admin Cabang</SelectItem>
+                  <SelectItem value="kasir">Kasir</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Cabang</Label>
+              <Select value={userForm.cabang} onValueChange={v => setUserForm({ ...userForm, cabang: v })}>
+                <SelectTrigger><SelectValue placeholder="Pilih cabang" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="cbg-001">Cabang Pusat</SelectItem>
+                  <SelectItem value="cbg-002">Cabang Selatan</SelectItem>
+                  <SelectItem value="cbg-003">Cabang Timur</SelectItem>
+                  <SelectItem value="cbg-004">Cabang Barat</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="flex gap-2 justify-end mt-4">
+            <Button variant="outline" onClick={() => setAddUserOpen(false)}>Batal</Button>
+            <Button className="gradient-primary shadow-emerald" onClick={handleAddUser}>Tambah</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Gem, Eye, EyeOff, Loader2, AlertCircle } from "lucide-react";
+import { Eye, EyeOff, Loader2, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useTheme } from "@/hooks/use-theme";
 import { Moon, Sun } from "lucide-react";
@@ -56,8 +56,13 @@ export default function LoginPage() {
 
         <div className="relative z-10">
           <div className="flex items-center gap-3 mb-12">
-            <div className="w-12 h-12 rounded-2xl gradient-gold flex items-center justify-center shadow-gold">
-              <Gem className="w-6 h-6 text-gold-foreground" />
+            <div className="w-14 h-14 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center overflow-hidden">
+              <img
+                src="https://grazia-prod.oss-ap-southeast-1.aliyuncs.com/resources/uid_100059471/b1dd8944-57af-49.png"
+                alt="Shiela Gadai Syariah"
+                crossOrigin="anonymous"
+                className="w-12 h-12 object-contain"
+              />
             </div>
             <div>
               <h1 className="text-white font-bold text-lg leading-tight">Shiela Gadai</h1>
@@ -104,8 +109,13 @@ export default function LoginPage() {
         <div className="w-full max-w-md space-y-6">
           {/* Logo (mobile) */}
           <div className="lg:hidden flex items-center gap-3 justify-center mb-8">
-            <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center">
-              <Gem className="w-5 h-5 text-primary-foreground" />
+            <div className="w-12 h-12 rounded-xl overflow-hidden bg-muted flex items-center justify-center">
+              <img
+                src="https://grazia-prod.oss-ap-southeast-1.aliyuncs.com/resources/uid_100059471/b1dd8944-57af-49.png"
+                alt="Shiela Gadai Syariah"
+                crossOrigin="anonymous"
+                className="w-10 h-10 object-contain"
+              />
             </div>
             <div>
               <h1 className="font-bold text-foreground">Shiela Gadai Syariah</h1>

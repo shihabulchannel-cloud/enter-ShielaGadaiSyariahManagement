@@ -6,21 +6,22 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Building2, Plus, Search, Edit, Eye, Phone, Mail, MapPin, Users, HandCoins } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+
+const emptyForm = { nama_cabang: "", kode_cabang: "", alamat: "", telepon: "", email: "", kepala_cabang: "" };
 
 export default function CabangPage() {
   const { toast } = useToast();
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [viewOpen, setViewOpen] = useState(false);
   const [selected, setSelected] = useState<Cabang | null>(null);
   const [cabangList, setCabangList] = useState<Cabang[]>(dummyCabang);
-  const [form, setForm] = useState({
-    nama_cabang: "", kode_cabang: "", alamat: "", telepon: "", email: "", kepala_cabang: "",
-  });
+  const [form, setForm] = useState(emptyForm);
+  const [editForm, setEditForm] = useState(emptyForm);
 
   const filtered = cabangList.filter(
     c => c.nama_cabang.toLowerCase().includes(search.toLowerCase()) || c.kode_cabang.toLowerCase().includes(search.toLowerCase())
@@ -40,9 +41,64 @@ export default function CabangPage() {
     };
     setCabangList([...cabangList, newCabang]);
     setOpen(false);
-    setForm({ nama_cabang: "", kode_cabang: "", alamat: "", telepon: "", email: "", kepala_cabang: "" });
+    setForm(emptyForm);
     toast({ title: "Berhasil", description: "Cabang berhasil ditambahkan." });
   };
+
+  const openEdit = (cabang: Cabang) => {
+    setSelected(cabang);
+    setEditForm({
+      nama_cabang: cabang.nama_cabang,
+      kode_cabang: cabang.kode_cabang,
+      alamat: cabang.alamat,
+      telepon: cabang.telepon,
+      email: cabang.email,
+      kepala_cabang: cabang.kepala_cabang,
+    });
+    setEditOpen(true);
+  };
+
+  const handleEdit = () => {
+    if (!editForm.nama_cabang || !editForm.kode_cabang) {
+      toast({ title: "Error", description: "Nama dan kode cabang wajib diisi.", variant: "destructive" });
+      return;
+    }
+    setCabangList(cabangList.map(c =>
+      c.id === selected?.id ? { ...c, ...editForm } : c
+    ));
+    setEditOpen(false);
+    setSelected(null);
+    toast({ title: "Berhasil", description: "Data cabang berhasil diperbarui." });
+  };
+
+  const CabangFormFields = ({ data, onChange }: { data: typeof emptyForm; onChange: (d: typeof emptyForm) => void }) => (
+    <div className="grid grid-cols-2 gap-4 mt-2">
+      <div className="col-span-2 space-y-1.5">
+        <Label>Nama Cabang *</Label>
+        <Input placeholder="Nama cabang" value={data.nama_cabang} onChange={e => onChange({ ...data, nama_cabang: e.target.value })} />
+      </div>
+      <div className="space-y-1.5">
+        <Label>Kode Cabang *</Label>
+        <Input placeholder="CBG-005" value={data.kode_cabang} onChange={e => onChange({ ...data, kode_cabang: e.target.value })} />
+      </div>
+      <div className="space-y-1.5">
+        <Label>Telepon</Label>
+        <Input placeholder="0xx-xxxxxxxx" value={data.telepon} onChange={e => onChange({ ...data, telepon: e.target.value })} />
+      </div>
+      <div className="col-span-2 space-y-1.5">
+        <Label>Email</Label>
+        <Input type="email" placeholder="cabang@shielagadai.com" value={data.email} onChange={e => onChange({ ...data, email: e.target.value })} />
+      </div>
+      <div className="col-span-2 space-y-1.5">
+        <Label>Kepala Cabang</Label>
+        <Input placeholder="Nama kepala cabang" value={data.kepala_cabang} onChange={e => onChange({ ...data, kepala_cabang: e.target.value })} />
+      </div>
+      <div className="col-span-2 space-y-1.5">
+        <Label>Alamat</Label>
+        <Input placeholder="Alamat lengkap cabang" value={data.alamat} onChange={e => onChange({ ...data, alamat: e.target.value })} />
+      </div>
+    </div>
+  );
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -59,32 +115,7 @@ export default function CabangPage() {
           </DialogTrigger>
           <DialogContent className="max-w-md">
             <DialogHeader><DialogTitle>Tambah Cabang Baru</DialogTitle></DialogHeader>
-            <div className="grid grid-cols-2 gap-4 mt-2">
-              <div className="col-span-2 space-y-1.5">
-                <Label>Nama Cabang *</Label>
-                <Input placeholder="Nama cabang" value={form.nama_cabang} onChange={e => setForm({...form, nama_cabang: e.target.value})} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Kode Cabang *</Label>
-                <Input placeholder="CBG-005" value={form.kode_cabang} onChange={e => setForm({...form, kode_cabang: e.target.value})} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Telepon</Label>
-                <Input placeholder="0xx-xxxxxxxx" value={form.telepon} onChange={e => setForm({...form, telepon: e.target.value})} />
-              </div>
-              <div className="col-span-2 space-y-1.5">
-                <Label>Email</Label>
-                <Input type="email" placeholder="cabang@shielagadai.com" value={form.email} onChange={e => setForm({...form, email: e.target.value})} />
-              </div>
-              <div className="col-span-2 space-y-1.5">
-                <Label>Kepala Cabang</Label>
-                <Input placeholder="Nama kepala cabang" value={form.kepala_cabang} onChange={e => setForm({...form, kepala_cabang: e.target.value})} />
-              </div>
-              <div className="col-span-2 space-y-1.5">
-                <Label>Alamat</Label>
-                <Input placeholder="Alamat lengkap cabang" value={form.alamat} onChange={e => setForm({...form, alamat: e.target.value})} />
-              </div>
-            </div>
+            <CabangFormFields data={form} onChange={setForm} />
             <div className="flex gap-2 justify-end mt-4">
               <Button variant="outline" onClick={() => setOpen(false)}>Batal</Button>
               <Button className="gradient-primary shadow-emerald" onClick={handleSave}>Simpan</Button>
@@ -157,7 +188,8 @@ export default function CabangPage() {
                   onClick={() => { setSelected(cabang); setViewOpen(true); }}>
                   <Eye className="w-3.5 h-3.5" /> Detail
                 </Button>
-                <Button variant="outline" size="sm" className="flex-1 gap-2 text-xs">
+                <Button variant="outline" size="sm" className="flex-1 gap-2 text-xs"
+                  onClick={() => openEdit(cabang)}>
                   <Edit className="w-3.5 h-3.5" /> Edit
                 </Button>
               </div>
@@ -172,6 +204,18 @@ export default function CabangPage() {
           <p>Tidak ada cabang ditemukan</p>
         </div>
       )}
+
+      {/* Edit Dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Edit Cabang — {selected?.nama_cabang}</DialogTitle></DialogHeader>
+          <CabangFormFields data={editForm} onChange={setEditForm} />
+          <div className="flex gap-2 justify-end mt-4">
+            <Button variant="outline" onClick={() => setEditOpen(false)}>Batal</Button>
+            <Button className="gradient-primary shadow-emerald" onClick={handleEdit}>Perbarui</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* View Dialog */}
       <Dialog open={viewOpen} onOpenChange={setViewOpen}>
