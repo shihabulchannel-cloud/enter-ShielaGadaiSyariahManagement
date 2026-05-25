@@ -3109,7 +3109,414 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      activity_log: {
+        Row: {
+          aksi: string
+          created_at: string | null
+          data_id: string | null
+          id: string
+          ip_address: string | null
+          tabel: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          aksi: string
+          created_at?: string | null
+          data_id?: string | null
+          id?: string
+          ip_address?: string | null
+          tabel?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          aksi?: string
+          created_at?: string | null
+          data_id?: string | null
+          id?: string
+          ip_address?: string | null
+          tabel?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_log_user_id_fkey"
+            columns: ["user_id"]
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      barang_jaminan: {
+        Row: {
+          berat: number | null
+          cabang_id: string | null
+          created_at: string | null
+          created_by: string | null
+          estimasi_nilai: number | null
+          foto_urls: Json | null
+          id: string
+          kategori: string
+          kode_barang: string
+          kondisi: string | null
+          lokasi_penyimpanan: string | null
+          merek: string | null
+          nama_barang: string
+          nasabah_id: string | null
+          nomor_seri: string | null
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          berat?: number | null
+          cabang_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          estimasi_nilai?: number | null
+          foto_urls?: Json | null
+          id?: string
+          kategori: string
+          kode_barang: string
+          kondisi?: string | null
+          lokasi_penyimpanan?: string | null
+          merek?: string | null
+          nama_barang: string
+          nasabah_id?: string | null
+          nomor_seri?: string | null
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          berat?: number | null
+          cabang_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          estimasi_nilai?: number | null
+          foto_urls?: Json | null
+          id?: string
+          kategori?: string
+          kode_barang?: string
+          kondisi?: string | null
+          lokasi_penyimpanan?: string | null
+          merek?: string | null
+          nama_barang?: string
+          nasabah_id?: string | null
+          nomor_seri?: string | null
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "barang_jaminan_cabang_id_fkey"
+            columns: ["cabang_id"]
+            referencedRelation: "cabang"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "barang_jaminan_created_by_fkey"
+            columns: ["created_by"]
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "barang_jaminan_nasabah_id_fkey"
+            columns: ["nasabah_id"]
+            referencedRelation: "nasabah"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cabang: {
+        Row: {
+          alamat: string | null
+          created_at: string | null
+          email: string | null
+          id: string
+          kepala_cabang: string | null
+          kode_cabang: string
+          nama_cabang: string
+          status: string
+          telepon: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          alamat?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          kepala_cabang?: string | null
+          kode_cabang: string
+          nama_cabang: string
+          status?: string
+          telepon?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          alamat?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          kepala_cabang?: string | null
+          kode_cabang?: string
+          nama_cabang?: string
+          status?: string
+          telepon?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      nasabah: {
+        Row: {
+          alamat: string | null
+          cabang_id: string | null
+          created_at: string | null
+          created_by: string | null
+          foto_diri_url: string | null
+          foto_ktp_url: string | null
+          id: string
+          is_active: boolean | null
+          kode_nasabah: string
+          nama_lengkap: string
+          nik: string
+          nomor_hp: string | null
+          pekerjaan: string | null
+          tanggal_lahir: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          alamat?: string | null
+          cabang_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          foto_diri_url?: string | null
+          foto_ktp_url?: string | null
+          id?: string
+          is_active?: boolean | null
+          kode_nasabah: string
+          nama_lengkap: string
+          nik: string
+          nomor_hp?: string | null
+          pekerjaan?: string | null
+          tanggal_lahir?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          alamat?: string | null
+          cabang_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          foto_diri_url?: string | null
+          foto_ktp_url?: string | null
+          id?: string
+          is_active?: boolean | null
+          kode_nasabah?: string
+          nama_lengkap?: string
+          nik?: string
+          nomor_hp?: string | null
+          pekerjaan?: string | null
+          tanggal_lahir?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nasabah_cabang_id_fkey"
+            columns: ["cabang_id"]
+            referencedRelation: "cabang"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nasabah_created_by_fkey"
+            columns: ["created_by"]
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pembayaran: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          id: string
+          jenis_pembayaran: string
+          jumlah: number
+          keterangan: string | null
+          metode: string
+          nomor_pembayaran: string
+          tanggal_bayar: string | null
+          transaksi_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          jenis_pembayaran: string
+          jumlah: number
+          keterangan?: string | null
+          metode: string
+          nomor_pembayaran: string
+          tanggal_bayar?: string | null
+          transaksi_id: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          jenis_pembayaran?: string
+          jumlah?: number
+          keterangan?: string | null
+          metode?: string
+          nomor_pembayaran?: string
+          tanggal_bayar?: string | null
+          transaksi_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pembayaran_created_by_fkey"
+            columns: ["created_by"]
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pembayaran_transaksi_id_fkey"
+            columns: ["transaksi_id"]
+            referencedRelation: "transaksi_gadai"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          cabang_id: string | null
+          created_at: string | null
+          email: string
+          foto_url: string | null
+          id: string
+          is_active: boolean | null
+          last_login: string | null
+          nama_lengkap: string
+          role: string
+          telepon: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          cabang_id?: string | null
+          created_at?: string | null
+          email: string
+          foto_url?: string | null
+          id: string
+          is_active?: boolean | null
+          last_login?: string | null
+          nama_lengkap: string
+          role?: string
+          telepon?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          cabang_id?: string | null
+          created_at?: string | null
+          email?: string
+          foto_url?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_login?: string | null
+          nama_lengkap?: string
+          role?: string
+          telepon?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_cabang_id_fkey"
+            columns: ["cabang_id"]
+            referencedRelation: "cabang"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transaksi_gadai: {
+        Row: {
+          akad_digital: string | null
+          barang_id: string
+          cabang_id: string | null
+          created_at: string | null
+          created_by: string | null
+          id: string
+          keterangan: string | null
+          nasabah_id: string
+          nilai_pinjaman: number
+          nomor_transaksi: string
+          status: string
+          tanggal_gadai: string
+          tanggal_jatuh_tempo: string
+          tanggal_pelunasan: string | null
+          ujrah_per_bulan: number
+          updated_at: string | null
+        }
+        Insert: {
+          akad_digital?: string | null
+          barang_id: string
+          cabang_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          keterangan?: string | null
+          nasabah_id: string
+          nilai_pinjaman: number
+          nomor_transaksi: string
+          status?: string
+          tanggal_gadai?: string
+          tanggal_jatuh_tempo: string
+          tanggal_pelunasan?: string | null
+          ujrah_per_bulan: number
+          updated_at?: string | null
+        }
+        Update: {
+          akad_digital?: string | null
+          barang_id?: string
+          cabang_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          keterangan?: string | null
+          nasabah_id?: string
+          nilai_pinjaman?: number
+          nomor_transaksi?: string
+          status?: string
+          tanggal_gadai?: string
+          tanggal_jatuh_tempo?: string
+          tanggal_pelunasan?: string | null
+          ujrah_per_bulan?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transaksi_gadai_barang_id_fkey"
+            columns: ["barang_id"]
+            referencedRelation: "barang_jaminan"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transaksi_gadai_cabang_id_fkey"
+            columns: ["cabang_id"]
+            referencedRelation: "cabang"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transaksi_gadai_created_by_fkey"
+            columns: ["created_by"]
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transaksi_gadai_nasabah_id_fkey"
+            columns: ["nasabah_id"]
+            referencedRelation: "nasabah"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
