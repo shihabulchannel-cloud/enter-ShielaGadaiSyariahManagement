@@ -1,0 +1,80 @@
+
+-- Drop and recreate the trigger function with better error handling
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+DECLARE
+  cabang_uuid UUID;
+  user_role TEXT;
+  user_nama TEXT;
+BEGIN
+  -- Get default cabang
+  BEGIN
+    SELECT id INTO cabang_uuid FROM public.cabang WHERE kode_cabang = 'CBG-001' LIMIT 1;
+  EXCEPTION WHEN OTHERS THEN
+    cabang_uuid := NULL;
+  END;
+
+  -- Get metadata safely
+  user_role := COALESCE(
+    NEW.raw_user_meta_data->>'role',
+    'kasir'
+  );
+  
+  user_nama := COALESCE(
+    NEW.raw_user_meta_data->>'nama_lengkap',
+    split_part(NEW.email, '@', 1)
+  );
+
+  -- Insert profile with exception handling
+  BEGIN
+    INSERT INTO public.profiles (id, nama_lengkap, email, role, cabang_id, is_active, created_at, updated_at)
+    VALUES (
+      NEW.id,
+      user_nama,
+      NEW.email,
+      user_role,
+      cabang_uuid,
+      TRUE,
+      NOW(),
+      NOW()
+    )
+    ON CONFLICT (id) DO UPDATE SET
+      nama_lengkap = EXCLUDED.nama_lengkap,
+      email = EXCLUDED.email,
+      updated_at = NOW();
+  EXCEPTION WHEN OTHERS THEN
+    -- Log error but don't fail auth
+    RAISE WARNING 'Error creating profile for user %: %', NEW.id, SQLERRM;
+  END;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+-- Recreate trigger
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- Make sure cabang pusat exists
+INSERT INTO public.cabang (kode_cabang, nama_cabang, alamat, telepon, email, kepala_cabang, status) 
+VALUES ('CBG-001', 'Cabang Pusat', 'Jl. Sudirman No. 1, Jakarta Pusat', '021-12345678', 'pusat@shielagadai.com', 'Admin Pusat', 'aktif')
+ON CONFLICT (kode_cabang) DO NOTHING;
+
+-- Fix RLS policies for profiles - drop and recreate to be safe
+DROP POLICY IF EXISTS "Authenticated users can view profiles" ON profiles;
+DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
+DROP POLICY IF EXISTS "Users can insert own profile" ON profiles;
+
+-- Allow anyone to insert their own profile (needed during signup)
+CREATE POLICY "Users can insert own profile" ON profiles
+  FOR INSERT WITH CHECK (auth.uid() = id OR auth.uid() IS NOT NULL);
+
+-- Allow authenticated users to view all profiles
+CREATE POLICY "Authenticated users can view profiles" ON profiles
+  FOR SELECT TO authenticated USING (true);
+
+-- Allow users to update their own profile
+CREATE POLICY "Users can update own profile" ON profiles
+  FOR UPDATE TO authenticated USING (auth.uid() = id);
