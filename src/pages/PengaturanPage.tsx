@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -35,10 +35,22 @@ export default function PengaturanPage() {
   const [notifMacet, setNotifMacet] = useState(true);
   const [ujrahRate, setUjrahRate] = useState("2");
   const [maxDurasi, setMaxDurasi] = useState("4");
-  const [users, setUsers] = useState<UserEntry[]>(initialUsers);
+  const [users, setUsers] = useState<UserEntry[]>(() => {
+    try {
+      const saved = localStorage.getItem("shiela-users");
+      return saved ? JSON.parse(saved) : initialUsers;
+    } catch {
+      return initialUsers;
+    }
+  });
   const [addUserOpen, setAddUserOpen] = useState(false);
   const [userForm, setUserForm] = useState(emptyUser);
   const [showPw, setShowPw] = useState(false);
+
+  // Persist users to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem("shiela-users", JSON.stringify(users));
+  }, [users]);
 
   const handleSave = () => {
     toast({ title: "Berhasil", description: "Pengaturan berhasil disimpan." });

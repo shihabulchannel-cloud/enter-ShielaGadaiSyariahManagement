@@ -84,6 +84,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    // Immediately clear state so AppLayout redirects right away
+    setUser(null);
+    setSession(null);
+    setProfile(null);
     await supabase.auth.signOut();
   };
 
