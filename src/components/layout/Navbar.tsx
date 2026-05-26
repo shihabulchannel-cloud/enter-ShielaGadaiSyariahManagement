@@ -158,9 +158,9 @@ export function Navbar({ onMobileMenuToggle }: NavbarProps) {
         {/* Cabang Selector */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="gap-2 h-9 hidden sm:flex border-border/60">
+            <Button variant="outline" size="sm" className="gap-2 h-9 border-border/60">
               <Building2 className="w-4 h-4 text-primary" />
-              <span className="text-sm font-medium hidden md:inline max-w-36 truncate">
+              <span className="text-sm font-medium max-w-32 truncate hidden md:inline">
                 {selectedCabang ? selectedCabang.nama_cabang : "Semua Cabang"}
               </span>
               <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />

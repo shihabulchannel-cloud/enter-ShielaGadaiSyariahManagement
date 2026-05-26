@@ -6,13 +6,18 @@ import { useSupabaseCabang } from "@/hooks/use-supabase-cabang";
 import { formatCurrency, formatDate, getStatusTransaksiColor, getLabelStatus } from "@/lib/dummy-data";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, BarChart, Bar,
 } from "recharts";
 import {
   TrendingUp, Users, Package, Building2,
-  AlertTriangle, CheckCircle, Clock, HandCoins, Loader2,
+  AlertTriangle, CheckCircle, Clock, HandCoins, Loader2, ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -29,7 +34,7 @@ const chartDataTransaksi = [
 ];
 
 export default function DashboardPage() {
-  const { selectedCabang } = useCabang();
+  const { selectedCabang, setSelectedCabang } = useCabang();
   const cabangFilter = selectedCabang?.id ?? null;
 
   const { data: transaksiList, loading: loadingTrx } = useSupabaseTransaksi(cabangFilter);
@@ -96,18 +101,44 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
           <p className="text-muted-foreground text-sm">
-            {selectedCabang ? selectedCabang.nama_cabang : "Semua Cabang"} · {new Date().toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+            {new Date().toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
           </p>
         </div>
-        {loading && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader2 className="w-4 h-4 animate-spin" /> Memuat data...
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          {/* Cabang Selector — visible on all screen sizes */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="gap-2 h-9 border-primary/30 text-primary hover:bg-primary/5">
+                <Building2 className="w-4 h-4" />
+                <span className="text-sm font-medium max-w-40 truncate">
+                  {selectedCabang ? selectedCabang.nama_cabang : "Semua Cabang"}
+                </span>
+                <ChevronDown className="w-3.5 h-3.5 opacity-60" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>Pilih Cabang</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setSelectedCabang(null)} className={cn("gap-2 cursor-pointer", !selectedCabang && "text-primary font-medium")}>
+                <Building2 className="w-4 h-4" /> Semua Cabang
+              </DropdownMenuItem>
+              {cabangList.map(c => (
+                <DropdownMenuItem key={c.id} onClick={() => setSelectedCabang(c as Parameters<typeof setSelectedCabang>[0])} className={cn("gap-2 cursor-pointer", selectedCabang?.id === c.id && "text-primary font-medium")}>
+                  <Building2 className="w-4 h-4" /> {c.nama_cabang}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          {loading && (
+            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <Loader2 className="w-4 h-4 animate-spin" />
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Stat Cards */}
