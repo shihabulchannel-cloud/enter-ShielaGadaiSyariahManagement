@@ -85,8 +85,8 @@ export default function LaporanPage() {
       ...monthlyData.map(d => [`${d.bulan} ${selectedYear}`, String(d.pinjaman), String(d.ujrah)]),
       [],
       ["LAPORAN TRANSAKSI GADAI"],
-      ["No. Transaksi", "Nasabah", "Barang", "Pinjaman (Rp)", "Ujrah/Bulan (Rp)", "Status"],
-      ...transaksiData.map(t => [t.nomor_transaksi, getNasabahNama(t), getBarangNama(t), String(t.nilai_pinjaman), String(t.ujrah_per_bulan), getLabelStatus(t.status)]),
+      ["No. Transaksi", "Nasabah", "Barang", "Pinjaman (Rp)", "Ujrah/Hari (Rp)", "Status"],
+      ...transaksiData.map(t => [t.nomor_transaksi, getNasabahNama(t), getBarangNama(t), String(t.nilai_pinjaman), String(t.ujrah_per_hari || Math.round(t.ujrah_per_bulan / 30)), getLabelStatus(t.status)]),
       [],
       ["LAPORAN BARANG JAMINAN"],
       ["Kode Barang", "Nama Barang", "Kategori", "Estimasi Nilai (Rp)", "Status"],
@@ -287,8 +287,8 @@ export default function LaporanPage() {
                     <table className="w-full">
                       <thead>
                         <tr className="border-b border-border bg-muted/30">
-                          {["No. Transaksi", "Nasabah", "Barang", "Pinjaman", "Ujrah/Bln", "Jatuh Tempo", "Status"].map(h => (
-                            <th key={h} className={cn("text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 py-3", (h==="Pinjaman"||h==="Ujrah/Bln") && "text-right", h==="Status" && "text-center", h==="Barang" && "hidden md:table-cell")}>{h}</th>
+                          {["No. Transaksi", "Nasabah", "Barang", "Pinjaman", "Ujrah/Hari", "Jatuh Tempo", "Status"].map(h => (
+                            <th key={h} className={cn("text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 py-3", (h==="Pinjaman"||h==="Ujrah/Hari") && "text-right", h==="Status" && "text-center", h==="Barang" && "hidden md:table-cell")}>{h}</th>
                           ))}
                         </tr>
                       </thead>
@@ -301,7 +301,7 @@ export default function LaporanPage() {
                             <td className="px-4 py-3 text-sm">{getNasabahNama(t)}</td>
                             <td className="px-4 py-3 text-sm text-muted-foreground hidden md:table-cell">{getBarangNama(t)}</td>
                             <td className="px-4 py-3 text-sm text-right font-semibold">{formatCurrency(t.nilai_pinjaman)}</td>
-                            <td className="px-4 py-3 text-sm text-right text-muted-foreground">{formatCurrency(t.ujrah_per_bulan)}</td>
+                            <td className="px-4 py-3 text-sm text-right text-muted-foreground">{formatCurrency(t.ujrah_per_hari || Math.round(t.ujrah_per_bulan / 30))}/hari</td>
                             <td className="px-4 py-3 text-sm text-muted-foreground">{t.tanggal_jatuh_tempo}</td>
                             <td className="px-4 py-3 text-center">
                               <span className={cn("inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border", getStatusTransaksiColor(t.status as "aktif" | "diperpanjang" | "lunas" | "macet" | "lelang"))}>{getLabelStatus(t.status)}</span>

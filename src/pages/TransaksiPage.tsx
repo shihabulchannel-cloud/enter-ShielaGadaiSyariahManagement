@@ -23,13 +23,61 @@ import {
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
+// ---------- Tarif Ujrah Harian ----------
+function hitungUjrahHari(kategori: string, nilaiPinjaman: number, beratGram?: number | null): number {
+  const jt = 1_000_000;
+  const kat = (kategori || "").toLowerCase();
+  if (kat === "hp" || kat === "smartphone") {
+    if (nilaiPinjaman <= 3*jt) return 3000;
+    if (nilaiPinjaman <= 5*jt) return 4000;
+    return 5000;
+  }
+  if (kat === "laptop") {
+    if (nilaiPinjaman <= 3*jt) return 4000;
+    if (nilaiPinjaman <= 5*jt) return 5000;
+    return 6500;
+  }
+  if (kat === "emas" || kat === "perhiasan") {
+    if (beratGram && beratGram > 0) {
+      if (beratGram < 10) return 2000;
+      if (beratGram <= 15) return 3000;
+      return 4000;
+    }
+    if (nilaiPinjaman <= 3*jt) return 2000;
+    if (nilaiPinjaman <= 5*jt) return 3000;
+    return 4000;
+  }
+  if (kat === "kamera") {
+    if (nilaiPinjaman <= 3*jt) return 5000;
+    if (nilaiPinjaman <= 5*jt) return 6000;
+    return 7500;
+  }
+  if (kat === "tablet") {
+    if (nilaiPinjaman <= 3*jt) return 3500;
+    if (nilaiPinjaman <= 5*jt) return 4500;
+    return 5500;
+  }
+  if (kat === "konsol") {
+    if (nilaiPinjaman <= 2*jt) return 3000;
+    if (nilaiPinjaman <= 4*jt) return 4000;
+    return 5000;
+  }
+  // Default: elektronik / lainnya
+  if (nilaiPinjaman <= 3*jt) return 3000;
+  if (nilaiPinjaman <= 5*jt) return 4000;
+  return 5000;
+}
+
 // ---------- Akad HTML Generator ----------
 function generateAkadHtml(trx: {
-  nomor_transaksi: string; nilai_pinjaman: number; ujrah_per_bulan: number;
+  nomor_transaksi: string; nilai_pinjaman: number; ujrah_per_hari: number;
   tanggal_gadai: string; tanggal_jatuh_tempo: string;
-  nasabah_nama?: string; barang_nama?: string; cabang_nama?: string;
-}, ujrahTotal: number): string {
+  nasabah_nama?: string; barang_nama?: string; cabang_nama?: string; durasi_bulan?: number;
+}): string {
   const today = new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" });
+  const ujrahPerBulan = trx.ujrah_per_hari * 30;
+  const durasi = trx.durasi_bulan || 3;
+  const ujrahTotal = trx.ujrah_per_hari * 30 * durasi;
   return `<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"/>
 <title>Akad Rahn - ${trx.nomor_transaksi}</title>
 <style>
@@ -65,8 +113,9 @@ table{width:100%;border-collapse:collapse}td{padding:5px 8px;vertical-align:top}
 <div class="value-box"><div style="color:#555;font-size:11px;margin-bottom:2px">Nilai Pinjaman (Marhun Bih)</div>
 <div class="amount">Rp ${trx.nilai_pinjaman.toLocaleString("id-ID")}</div></div>
 <table>
-<tr><td>Ujrah per Bulan</td><td>Rp ${trx.ujrah_per_bulan.toLocaleString("id-ID")}</td></tr>
-<tr><td>Total Ujrah</td><td>Rp ${ujrahTotal.toLocaleString("id-ID")}</td></tr>
+<tr><td>Ujrah per Hari</td><td>Rp ${trx.ujrah_per_hari.toLocaleString("id-ID")}/hari</td></tr>
+<tr><td>Ujrah per Bulan (est.)</td><td>Rp ${ujrahPerBulan.toLocaleString("id-ID")}/bulan</td></tr>
+<tr><td>Total Ujrah (${durasi} bulan)</td><td>Rp ${ujrahTotal.toLocaleString("id-ID")}</td></tr>
 <tr><td>Tanggal Gadai</td><td>${trx.tanggal_gadai}</td></tr>
 <tr><td>Jatuh Tempo</td><td><strong>${trx.tanggal_jatuh_tempo}</strong></td></tr>
 </table></div>
@@ -89,9 +138,9 @@ table{width:100%;border-collapse:collapse}td{padding:5px 8px;vertical-align:top}
 </body></html>`;
 }
 
-function printAkad(trx: { nomor_transaksi: string; nilai_pinjaman: number; ujrah_per_bulan: number; tanggal_gadai: string; tanggal_jatuh_tempo: string; nasabah_nama?: string; barang_nama?: string; cabang_nama?: string; }, ujrahTotal: number) {
+function printAkad(trx: { nomor_transaksi: string; nilai_pinjaman: number; ujrah_per_hari: number; tanggal_gadai: string; tanggal_jatuh_tempo: string; nasabah_nama?: string; barang_nama?: string; cabang_nama?: string; durasi_bulan?: number; }) {
   const win = window.open("", "_blank", "width=850,height=700");
-  if (win) { win.document.write(generateAkadHtml(trx, ujrahTotal)); win.document.close(); setTimeout(() => { win.focus(); win.print(); }, 600); }
+  if (win) { win.document.write(generateAkadHtml(trx)); win.document.close(); setTimeout(() => { win.focus(); win.print(); }, 600); }
 }
 
 export default function TransaksiPage() {
@@ -116,11 +165,22 @@ export default function TransaksiPage() {
 
   const [form, setForm] = useState({
     nasabah_id: "", barang_id: "", cabang_id: "",
-    nilai_pinjaman: "", ujrah_per_bulan: "", tanggal_gadai: new Date().toISOString().split("T")[0],
+    nilai_pinjaman: "", ujrah_per_hari: "", tanggal_gadai: new Date().toISOString().split("T")[0],
     durasi_bulan: "3",
   });
 
-  const ujrahEstimasi = form.nilai_pinjaman ? parseFloat(form.nilai_pinjaman) * 0.02 : 0;
+  // Auto-hitung ujrah berdasarkan kategori barang
+  const autoHitungUjrah = (barangId: string, nilaiPinjaman: string) => {
+    if (!barangId || !nilaiPinjaman || parseFloat(nilaiPinjaman) <= 0) return "";
+    const barang = barangList.find(b => b.id === barangId);
+    if (!barang) return "";
+    const rate = hitungUjrahHari(barang.kategori, parseFloat(nilaiPinjaman), barang.berat);
+    return String(rate);
+  };
+
+  const ujrahHariAuto = autoHitungUjrah(form.barang_id, form.nilai_pinjaman);
+  const ujrahHariValue = form.ujrah_per_hari ? parseFloat(form.ujrah_per_hari) : (ujrahHariAuto ? parseFloat(ujrahHariAuto) : 0);
+  const ujrahPerBulanEstimasi = ujrahHariValue * 30;
 
   const perPage = 8;
   const filtered = transaksiList.filter((t) => {
@@ -147,7 +207,7 @@ export default function TransaksiPage() {
     }
     setSaving(true);
     try {
-      const ujrahPerBulan = form.ujrah_per_bulan ? parseFloat(form.ujrah_per_bulan) : ujrahEstimasi;
+      const ujrahHari = ujrahHariValue;
       const nomor = `TRX-${new Date().getFullYear()}-${String(transaksiList.length + 1).padStart(3, "0")}`;
       await insert({
         nomor_transaksi: nomor,
@@ -155,7 +215,8 @@ export default function TransaksiPage() {
         barang_id: form.barang_id,
         cabang_id: form.cabang_id || selectedCabang?.id || cabangList[0]?.id || null,
         nilai_pinjaman: parseFloat(form.nilai_pinjaman),
-        ujrah_per_bulan: ujrahPerBulan,
+        ujrah_per_hari: ujrahHari,
+        ujrah_per_bulan: ujrahHari * 30,
         tanggal_gadai: form.tanggal_gadai,
         tanggal_jatuh_tempo: buildJatuhTempo(),
         status: "aktif",
@@ -174,7 +235,7 @@ export default function TransaksiPage() {
     }
     setSaving(true);
     try {
-      const ujrahPerBulan = form.ujrah_per_bulan ? parseFloat(form.ujrah_per_bulan) : ujrahEstimasi;
+      const ujrahHari = ujrahHariValue;
       const nomor = `TRX-${new Date().getFullYear()}-${String(transaksiList.length + 1).padStart(3, "0")}`;
       const nasabah = nasabahList.find(n => n.id === form.nasabah_id);
       const barang = barangList.find(b => b.id === form.barang_id);
@@ -183,15 +244,19 @@ export default function TransaksiPage() {
       await insert({
         nomor_transaksi: nomor, nasabah_id: form.nasabah_id, barang_id: form.barang_id,
         cabang_id: cabang?.id || null,
-        nilai_pinjaman: parseFloat(form.nilai_pinjaman), ujrah_per_bulan: ujrahPerBulan,
+        nilai_pinjaman: parseFloat(form.nilai_pinjaman),
+        ujrah_per_hari: ujrahHari,
+        ujrah_per_bulan: ujrahHari * 30,
         tanggal_gadai: form.tanggal_gadai, tanggal_jatuh_tempo: jatuhTempo, status: "aktif",
       });
       setOpen(false);
       printAkad({
         nomor_transaksi: nomor, nilai_pinjaman: parseFloat(form.nilai_pinjaman),
-        ujrah_per_bulan: ujrahPerBulan, tanggal_gadai: form.tanggal_gadai, tanggal_jatuh_tempo: jatuhTempo,
+        ujrah_per_hari: ujrahHari,
+        tanggal_gadai: form.tanggal_gadai, tanggal_jatuh_tempo: jatuhTempo,
+        durasi_bulan: parseInt(form.durasi_bulan),
         nasabah_nama: nasabah?.nama_lengkap, barang_nama: barang?.nama_barang, cabang_nama: cabang?.nama_cabang,
-      }, ujrahPerBulan * parseInt(form.durasi_bulan));
+      });
       toast({ title: "Akad dibuat!", description: `${nomor} — Dialog cetak akan terbuka.` });
     } catch (e: unknown) {
       toast({ title: "Error", description: (e as Error).message, variant: "destructive" });
@@ -235,7 +300,10 @@ export default function TransaksiPage() {
               </div>
               <div className="col-span-2 space-y-1.5">
                 <Label>Barang Jaminan *</Label>
-                <Select value={form.barang_id} onValueChange={v => setForm({...form, barang_id: v})}>
+                <Select value={form.barang_id} onValueChange={v => {
+                    const newUjrah = autoHitungUjrah(v, form.nilai_pinjaman);
+                    setForm({ ...form, barang_id: v, ujrah_per_hari: newUjrah });
+                  }}>
                   <SelectTrigger><SelectValue placeholder="Pilih barang" /></SelectTrigger>
                   <SelectContent>
                     {barangList.filter(b => b.status === "aktif").map(b => (
@@ -249,8 +317,25 @@ export default function TransaksiPage() {
                 <Input type="number" placeholder="0" value={form.nilai_pinjaman} onChange={e => setForm({...form, nilai_pinjaman: e.target.value})} />
               </div>
               <div className="space-y-1.5">
-                <Label>Ujrah/Bulan (Rp)</Label>
-                <Input type="number" placeholder={ujrahEstimasi ? String(Math.round(ujrahEstimasi)) : "otomatis 2%"} value={form.ujrah_per_bulan} onChange={e => setForm({...form, ujrah_per_bulan: e.target.value})} />
+                <Label>Nilai Pinjaman (Rp) *</Label>
+                <Input type="number" placeholder="0" value={form.nilai_pinjaman}
+                  onChange={e => {
+                    const val = e.target.value;
+                    const newUjrah = autoHitungUjrah(form.barang_id, val);
+                    setForm({ ...form, nilai_pinjaman: val, ujrah_per_hari: newUjrah });
+                  }} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Ujrah / Hari (Rp) <span className="text-xs text-primary font-normal">— otomatis</span></Label>
+                <Input type="number" placeholder="Otomatis dari kategori"
+                  value={form.ujrah_per_hari || ujrahHariAuto}
+                  onChange={e => setForm({ ...form, ujrah_per_hari: e.target.value })} />
+                {ujrahHariValue > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    ≈ Rp {ujrahPerBulanEstimasi.toLocaleString("id-ID")}/bulan
+                    {" · "}Total {form.durasi_bulan} bln = Rp {(ujrahHariValue * 30 * parseInt(form.durasi_bulan || "3")).toLocaleString("id-ID")}
+                  </p>
+                )}
               </div>
               <div className="space-y-1.5">
                 <Label>Tanggal Gadai</Label>
@@ -273,8 +358,8 @@ export default function TransaksiPage() {
               {form.nilai_pinjaman && (
                 <div className="col-span-2 p-3 rounded-lg bg-accent/50 border border-accent flex items-center gap-2 text-sm">
                   <Calculator className="w-4 h-4 text-primary flex-shrink-0" />
-                  <span className="text-muted-foreground">Estimasi ujrah 2%/bulan:</span>
-                  <span className="font-semibold text-primary">{formatCurrency(ujrahEstimasi)}/bulan</span>
+                  <span className="text-muted-foreground">Estimasi ujrah berdasarkan kategori:</span>
+                  <span className="font-semibold text-primary">{ujrahHariValue > 0 ? `Rp ${ujrahHariValue.toLocaleString("id-ID")}/hari` : "Pilih barang & isi nilai"}</span>
                 </div>
               )}
             </div>
@@ -426,16 +511,16 @@ export default function TransaksiPage() {
                 <div><p className="text-xs text-muted-foreground">Nasabah</p><p className="font-semibold">{getNasabahNama(selected)}</p></div>
                 <div><p className="text-xs text-muted-foreground">Barang</p><p className="font-semibold">{getBarangNama(selected)}</p></div>
                 <div><p className="text-xs text-muted-foreground">Nilai Pinjaman</p><p className="font-bold text-primary text-lg">{formatCurrency(selected.nilai_pinjaman)}</p></div>
-                <div><p className="text-xs text-muted-foreground">Ujrah/Bulan</p><p className="font-bold text-gold text-lg">{formatCurrency(selected.ujrah_per_bulan)}</p></div>
+                <div><p className="text-xs text-muted-foreground">Ujrah/Hari</p><p className="font-bold text-gold text-lg">{formatCurrency(selected.ujrah_per_hari || selected.ujrah_per_bulan / 30)}</p></div>
                 <div><p className="text-xs text-muted-foreground">Tanggal Gadai</p><p className="font-medium">{formatDate(selected.tanggal_gadai)}</p></div>
                 <div><p className="text-xs text-muted-foreground">Jatuh Tempo</p><p className="font-medium">{formatDate(selected.tanggal_jatuh_tempo)}</p></div>
                 {selected.tanggal_pelunasan && <div><p className="text-xs text-muted-foreground">Dilunasi</p><p className="font-medium text-emerald-600">{formatDate(selected.tanggal_pelunasan)}</p></div>}
               </div>
               <div className="flex gap-2 pt-2">
-                <Button variant="outline" size="sm" className="gap-2 flex-1" onClick={() => printAkad({ nomor_transaksi: selected.nomor_transaksi, nilai_pinjaman: selected.nilai_pinjaman, ujrah_per_bulan: selected.ujrah_per_bulan, tanggal_gadai: selected.tanggal_gadai, tanggal_jatuh_tempo: selected.tanggal_jatuh_tempo, nasabah_nama: getNasabahNama(selected), barang_nama: getBarangNama(selected), cabang_nama: getCabangNama(selected) }, selected.ujrah_per_bulan * 3)}>
+                <Button variant="outline" size="sm" className="gap-2 flex-1" onClick={() => printAkad({ nomor_transaksi: selected.nomor_transaksi, nilai_pinjaman: selected.nilai_pinjaman, ujrah_per_hari: selected.ujrah_per_hari || Math.round(selected.ujrah_per_bulan / 30), tanggal_gadai: selected.tanggal_gadai, tanggal_jatuh_tempo: selected.tanggal_jatuh_tempo, nasabah_nama: getNasabahNama(selected), barang_nama: getBarangNama(selected), cabang_nama: getCabangNama(selected) })}>
                   <Printer className="w-4 h-4" /> Cetak Akad
                 </Button>
-                <Button variant="outline" size="sm" className="gap-2 flex-1" onClick={() => printAkad({ nomor_transaksi: selected.nomor_transaksi, nilai_pinjaman: selected.nilai_pinjaman, ujrah_per_bulan: selected.ujrah_per_bulan, tanggal_gadai: selected.tanggal_gadai, tanggal_jatuh_tempo: selected.tanggal_jatuh_tempo, nasabah_nama: getNasabahNama(selected), barang_nama: getBarangNama(selected), cabang_nama: getCabangNama(selected) }, selected.ujrah_per_bulan * 3)}>
+                <Button variant="outline" size="sm" className="gap-2 flex-1" onClick={() => printAkad({ nomor_transaksi: selected.nomor_transaksi, nilai_pinjaman: selected.nilai_pinjaman, ujrah_per_hari: selected.ujrah_per_hari || Math.round(selected.ujrah_per_bulan / 30), tanggal_gadai: selected.tanggal_gadai, tanggal_jatuh_tempo: selected.tanggal_jatuh_tempo, nasabah_nama: getNasabahNama(selected), barang_nama: getBarangNama(selected), cabang_nama: getCabangNama(selected) })}>
                   <FileText className="w-4 h-4" /> Bukti PDF
                 </Button>
               </div>

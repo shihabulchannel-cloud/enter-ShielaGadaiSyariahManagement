@@ -3452,6 +3452,7 @@ export type Database = {
           tanggal_jatuh_tempo: string
           tanggal_pelunasan: string | null
           ujrah_per_bulan: number
+          ujrah_per_hari: number
           updated_at: string | null
         }
         Insert: {
@@ -3470,6 +3471,7 @@ export type Database = {
           tanggal_jatuh_tempo: string
           tanggal_pelunasan?: string | null
           ujrah_per_bulan: number
+          ujrah_per_hari?: number
           updated_at?: string | null
         }
         Update: {
@@ -3488,6 +3490,7 @@ export type Database = {
           tanggal_jatuh_tempo?: string
           tanggal_pelunasan?: string | null
           ujrah_per_bulan?: number
+          ujrah_per_hari?: number
           updated_at?: string | null
         }
         Relationships: [

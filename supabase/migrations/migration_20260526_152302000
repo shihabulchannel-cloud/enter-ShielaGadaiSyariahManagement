@@ -1,0 +1,1 @@
+ALTER TABLE transaksi_gadai ADD COLUMN IF NOT EXISTS ujrah_per_hari integer NOT NULL DEFAULT 0;

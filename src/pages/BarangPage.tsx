@@ -21,8 +21,10 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
 const kategoriLabels: Record<string, string> = {
-  emas: "Emas", elektronik: "Elektronik", kendaraan: "Kendaraan",
-  sertifikat: "Sertifikat", lainnya: "Lainnya",
+  hp: "HP / Smartphone", laptop: "Laptop", tablet: "Tablet / iPad",
+  kamera: "Kamera DSLR / Mirrorless", konsol: "Console Game (PS/Nintendo)",
+  emas: "Emas & Perhiasan", kendaraan: "Kendaraan",
+  elektronik: "Elektronik Lainnya", lainnya: "Lainnya",
 };
 
 export default function BarangPage() {

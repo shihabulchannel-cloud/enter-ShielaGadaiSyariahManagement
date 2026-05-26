@@ -9,6 +9,7 @@ export interface TransaksiRow {
   cabang_id: string | null;
   nilai_pinjaman: number;
   ujrah_per_bulan: number;
+  ujrah_per_hari: number;
   tanggal_gadai: string;
   tanggal_jatuh_tempo: string;
   tanggal_pelunasan: string | null;
@@ -41,7 +42,7 @@ export function useSupabaseTransaksi(cabangId?: string | null) {
 
   const insert = async (item: {
     nasabah_id: string; barang_id: string; cabang_id?: string | null;
-    nilai_pinjaman: number; ujrah_per_bulan: number;
+    nilai_pinjaman: number; ujrah_per_bulan: number; ujrah_per_hari?: number;
     tanggal_gadai: string; tanggal_jatuh_tempo: string;
     nomor_transaksi: string; status?: string; keterangan?: string;
   }) => {
