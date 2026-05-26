@@ -1,0 +1,185 @@
+
+-- Enable UUID extension
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- Cabang (Branches) Table
+CREATE TABLE IF NOT EXISTS cabang (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  kode_cabang TEXT NOT NULL UNIQUE,
+  nama_cabang TEXT NOT NULL,
+  alamat TEXT,
+  telepon TEXT,
+  email TEXT,
+  kepala_cabang TEXT,
+  status TEXT NOT NULL DEFAULT 'aktif' CHECK (status IN ('aktif', 'nonaktif')),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Profiles Table (linked to Supabase auth)
+CREATE TABLE IF NOT EXISTS profiles (
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  nama_lengkap TEXT NOT NULL,
+  email TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT 'kasir' CHECK (role IN ('super_admin', 'admin_cabang', 'kasir', 'owner')),
+  cabang_id UUID REFERENCES cabang(id),
+  telepon TEXT,
+  foto_url TEXT,
+  is_active BOOLEAN DEFAULT TRUE,
+  last_login TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Nasabah (Customers) Table
+CREATE TABLE IF NOT EXISTS nasabah (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  kode_nasabah TEXT NOT NULL UNIQUE,
+  nama_lengkap TEXT NOT NULL,
+  nik TEXT NOT NULL UNIQUE,
+  alamat TEXT,
+  nomor_hp TEXT,
+  pekerjaan TEXT,
+  tanggal_lahir DATE,
+  foto_ktp_url TEXT,
+  foto_diri_url TEXT,
+  cabang_id UUID REFERENCES cabang(id),
+  is_active BOOLEAN DEFAULT TRUE,
+  created_by UUID REFERENCES profiles(id),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Barang Jaminan (Collateral) Table
+CREATE TABLE IF NOT EXISTS barang_jaminan (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  kode_barang TEXT NOT NULL UNIQUE,
+  nama_barang TEXT NOT NULL,
+  kategori TEXT NOT NULL CHECK (kategori IN ('emas', 'elektronik', 'kendaraan', 'sertifikat', 'lainnya')),
+  merek TEXT,
+  kondisi TEXT CHECK (kondisi IN ('sangat_baik', 'baik', 'cukup', 'kurang')),
+  berat DECIMAL(10, 2),
+  nomor_seri TEXT,
+  estimasi_nilai DECIMAL(15, 2),
+  lokasi_penyimpanan TEXT,
+  status TEXT NOT NULL DEFAULT 'aktif' CHECK (status IN ('aktif', 'ditebus', 'jatuh_tempo', 'dilelang')),
+  foto_urls JSONB DEFAULT '[]',
+  nasabah_id UUID REFERENCES nasabah(id),
+  cabang_id UUID REFERENCES cabang(id),
+  created_by UUID REFERENCES profiles(id),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Transaksi Gadai Table
+CREATE TABLE IF NOT EXISTS transaksi_gadai (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  nomor_transaksi TEXT NOT NULL UNIQUE,
+  nasabah_id UUID NOT NULL REFERENCES nasabah(id),
+  barang_id UUID NOT NULL REFERENCES barang_jaminan(id),
+  cabang_id UUID REFERENCES cabang(id),
+  nilai_pinjaman DECIMAL(15, 2) NOT NULL,
+  ujrah_per_bulan DECIMAL(15, 2) NOT NULL,
+  tanggal_gadai DATE NOT NULL DEFAULT CURRENT_DATE,
+  tanggal_jatuh_tempo DATE NOT NULL,
+  tanggal_pelunasan DATE,
+  status TEXT NOT NULL DEFAULT 'aktif' CHECK (status IN ('aktif', 'diperpanjang', 'lunas', 'macet', 'lelang')),
+  akad_digital TEXT,
+  keterangan TEXT,
+  created_by UUID REFERENCES profiles(id),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Pembayaran Table
+CREATE TABLE IF NOT EXISTS pembayaran (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  nomor_pembayaran TEXT NOT NULL UNIQUE,
+  transaksi_id UUID NOT NULL REFERENCES transaksi_gadai(id),
+  jenis_pembayaran TEXT NOT NULL CHECK (jenis_pembayaran IN ('ujrah', 'cicilan', 'pelunasan')),
+  jumlah DECIMAL(15, 2) NOT NULL,
+  metode TEXT NOT NULL CHECK (metode IN ('tunai', 'transfer', 'qris', 'ewallet')),
+  tanggal_bayar TIMESTAMPTZ DEFAULT NOW(),
+  keterangan TEXT,
+  created_by UUID REFERENCES profiles(id),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Activity Log Table
+CREATE TABLE IF NOT EXISTS activity_log (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES profiles(id),
+  aksi TEXT NOT NULL,
+  tabel TEXT,
+  data_id UUID,
+  ip_address TEXT,
+  user_agent TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Insert default cabang pusat
+INSERT INTO cabang (kode_cabang, nama_cabang, alamat, telepon, email, kepala_cabang) 
+VALUES ('CBG-001', 'Cabang Pusat', 'Jl. Sudirman No. 1, Jakarta Pusat', '021-12345678', 'pusat@shielagadai.com', 'Admin Pusat')
+ON CONFLICT (kode_cabang) DO NOTHING;
+
+-- Enable RLS
+ALTER TABLE cabang ENABLE ROW LEVEL SECURITY;
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE nasabah ENABLE ROW LEVEL SECURITY;
+ALTER TABLE barang_jaminan ENABLE ROW LEVEL SECURITY;
+ALTER TABLE transaksi_gadai ENABLE ROW LEVEL SECURITY;
+ALTER TABLE pembayaran ENABLE ROW LEVEL SECURITY;
+ALTER TABLE activity_log ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policies: Allow authenticated users to access all data
+CREATE POLICY "Authenticated users can view cabang" ON cabang FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Authenticated users can manage cabang" ON cabang FOR ALL TO authenticated USING (true);
+
+CREATE POLICY "Authenticated users can view profiles" ON profiles FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Users can update own profile" ON profiles FOR UPDATE TO authenticated USING (auth.uid() = id);
+CREATE POLICY "Users can insert own profile" ON profiles FOR INSERT TO authenticated WITH CHECK (auth.uid() = id);
+
+CREATE POLICY "Authenticated users can view nasabah" ON nasabah FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Authenticated users can manage nasabah" ON nasabah FOR ALL TO authenticated USING (true);
+
+CREATE POLICY "Authenticated users can view barang" ON barang_jaminan FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Authenticated users can manage barang" ON barang_jaminan FOR ALL TO authenticated USING (true);
+
+CREATE POLICY "Authenticated users can view transaksi" ON transaksi_gadai FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Authenticated users can manage transaksi" ON transaksi_gadai FOR ALL TO authenticated USING (true);
+
+CREATE POLICY "Authenticated users can view pembayaran" ON pembayaran FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Authenticated users can manage pembayaran" ON pembayaran FOR ALL TO authenticated USING (true);
+
+CREATE POLICY "Authenticated users can view activity_log" ON activity_log FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Authenticated users can insert activity_log" ON activity_log FOR INSERT TO authenticated WITH CHECK (true);
+
+-- Function to auto-create profile on signup
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+DECLARE
+  cabang_uuid UUID;
+BEGIN
+  SELECT id INTO cabang_uuid FROM cabang WHERE kode_cabang = 'CBG-001' LIMIT 1;
+  INSERT INTO public.profiles (id, nama_lengkap, email, role, cabang_id)
+  VALUES (
+    NEW.id,
+    COALESCE(NEW.raw_user_meta_data->>'nama_lengkap', split_part(NEW.email, '@', 1)),
+    NEW.email,
+    COALESCE(NEW.raw_user_meta_data->>'role', 'kasir'),
+    cabang_uuid
+  );
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Trigger for new user
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- Enable realtime
+ALTER PUBLICATION supabase_realtime ADD TABLE transaksi_gadai;
+ALTER PUBLICATION supabase_realtime ADD TABLE pembayaran;
+ALTER PUBLICATION supabase_realtime ADD TABLE barang_jaminan;
