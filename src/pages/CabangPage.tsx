@@ -19,6 +19,38 @@ import { useToast } from "@/hooks/use-toast";
 
 const emptyForm = { nama_cabang: "", kode_cabang: "", alamat: "", telepon: "", email: "", kepala_cabang: "" };
 
+// Defined OUTSIDE component to prevent remount on every re-render
+function CabangFormFields({ data, onChange }: { data: typeof emptyForm; onChange: (d: typeof emptyForm) => void }) {
+  return (
+    <div className="grid grid-cols-2 gap-4 mt-2">
+      <div className="col-span-2 space-y-1.5">
+        <Label>Nama Cabang *</Label>
+        <Input placeholder="Nama cabang" value={data.nama_cabang} onChange={e => onChange({ ...data, nama_cabang: e.target.value })} />
+      </div>
+      <div className="space-y-1.5">
+        <Label>Kode Cabang *</Label>
+        <Input placeholder="CBG-005" value={data.kode_cabang} onChange={e => onChange({ ...data, kode_cabang: e.target.value })} />
+      </div>
+      <div className="space-y-1.5">
+        <Label>Telepon</Label>
+        <Input placeholder="0xx-xxxxxxxx" value={data.telepon} onChange={e => onChange({ ...data, telepon: e.target.value })} />
+      </div>
+      <div className="col-span-2 space-y-1.5">
+        <Label>Email</Label>
+        <Input type="email" placeholder="cabang@shielagadai.com" value={data.email} onChange={e => onChange({ ...data, email: e.target.value })} />
+      </div>
+      <div className="col-span-2 space-y-1.5">
+        <Label>Kepala Cabang</Label>
+        <Input placeholder="Nama kepala cabang" value={data.kepala_cabang} onChange={e => onChange({ ...data, kepala_cabang: e.target.value })} />
+      </div>
+      <div className="col-span-2 space-y-1.5">
+        <Label>Alamat</Label>
+        <Input placeholder="Alamat lengkap cabang" value={data.alamat} onChange={e => onChange({ ...data, alamat: e.target.value })} />
+      </div>
+    </div>
+  );
+}
+
 export default function CabangPage() {
   const { toast } = useToast();
   const { profile } = useAuth();
@@ -97,35 +129,6 @@ export default function CabangPage() {
     setDeleteId(null);
     toast({ title: "Berhasil", description: "Cabang berhasil dihapus." });
   };
-
-  const CabangFormFields = ({ data, onChange }: { data: typeof emptyForm; onChange: (d: typeof emptyForm) => void }) => (
-    <div className="grid grid-cols-2 gap-4 mt-2">
-      <div className="col-span-2 space-y-1.5">
-        <Label>Nama Cabang *</Label>
-        <Input placeholder="Nama cabang" value={data.nama_cabang} onChange={e => onChange({ ...data, nama_cabang: e.target.value })} />
-      </div>
-      <div className="space-y-1.5">
-        <Label>Kode Cabang *</Label>
-        <Input placeholder="CBG-005" value={data.kode_cabang} onChange={e => onChange({ ...data, kode_cabang: e.target.value })} />
-      </div>
-      <div className="space-y-1.5">
-        <Label>Telepon</Label>
-        <Input placeholder="0xx-xxxxxxxx" value={data.telepon} onChange={e => onChange({ ...data, telepon: e.target.value })} />
-      </div>
-      <div className="col-span-2 space-y-1.5">
-        <Label>Email</Label>
-        <Input type="email" placeholder="cabang@shielagadai.com" value={data.email} onChange={e => onChange({ ...data, email: e.target.value })} />
-      </div>
-      <div className="col-span-2 space-y-1.5">
-        <Label>Kepala Cabang</Label>
-        <Input placeholder="Nama kepala cabang" value={data.kepala_cabang} onChange={e => onChange({ ...data, kepala_cabang: e.target.value })} />
-      </div>
-      <div className="col-span-2 space-y-1.5">
-        <Label>Alamat</Label>
-        <Input placeholder="Alamat lengkap cabang" value={data.alamat} onChange={e => onChange({ ...data, alamat: e.target.value })} />
-      </div>
-    </div>
-  );
 
   return (
     <div className="space-y-6 animate-fade-in">
