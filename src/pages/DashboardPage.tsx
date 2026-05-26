@@ -127,7 +127,7 @@ export default function DashboardPage() {
                 <Building2 className="w-4 h-4" /> Semua Cabang
               </DropdownMenuItem>
               {cabangList.map(c => (
-                <DropdownMenuItem key={c.id} onClick={() => setSelectedCabang(c as Parameters<typeof setSelectedCabang>[0])} className={cn("gap-2 cursor-pointer", selectedCabang?.id === c.id && "text-primary font-medium")}>
+                <DropdownMenuItem key={c.id} onClick={() => setSelectedCabang(c)} className={cn("gap-2 cursor-pointer", selectedCabang?.id === c.id && "text-primary font-medium")}>
                   <Building2 className="w-4 h-4" /> {c.nama_cabang}
                 </DropdownMenuItem>
               ))}

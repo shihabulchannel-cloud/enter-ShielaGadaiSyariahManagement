@@ -27,13 +27,6 @@ const initialNotifications = [
   { id: 4, type: "warning", message: "Barang BRG-2026-003 mendekati jatuh tempo", time: "3 jam lalu", read: false },
 ];
 
-function getLocalList<T>(key: string, fallback: T[]): T[] {
-  try {
-    const item = localStorage.getItem(key);
-    return item ? (JSON.parse(item) as T[]) : fallback;
-  } catch { return fallback; }
-}
-
 export function Navbar({ onMobileMenuToggle }: NavbarProps) {
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
