@@ -261,7 +261,7 @@ export default function ArusKasPage() {
           </div>
         </div>
 
-        {/* Summary Cards */}
+                  {/* Summary Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Card className="shadow-sm border-l-4 border-l-primary">
             <CardContent className="p-5">
@@ -364,9 +364,9 @@ export default function ArusKasPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted/30">
-                    <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 py-3 min-w-[180px] sticky left-0 bg-muted/30">Item</th>
+                    <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 py-3 min-w-[180px]">Item</th>
                     {MONTH_NAMES.map(m => (
-                      <th key={m} className="text-right text-xs font-medium text-muted-foreground uppercase tracking-wider px-2 py-3 min-w-[72px]">{m.slice(0,3)}</th>
+                      <th key={m} className="text-right text-xs font-medium text-muted-foreground uppercase tracking-wider px-2 py-3 min-w-[72px] hidden md:table-cell">{m.slice(0,3)}</th>
                     ))}
                     <th className="text-right text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 py-3 min-w-[90px]">Total</th>
                     <th className="text-center text-xs font-medium text-muted-foreground uppercase tracking-wider px-3 py-3 w-20">Aksi</th>
@@ -386,11 +386,11 @@ export default function ArusKasPage() {
                       </tr>
                       {masukRows.map(row => (
                         <tr key={row.id} className="hover:bg-muted/20 group">
-                          <td className="px-4 py-2.5 sticky left-0 bg-card group-hover:bg-muted/20">
+                          <td className="px-4 py-2.5">
                             <span className="text-sm font-medium text-foreground pl-2">{row.nama}</span>
                           </td>
                           {MONTH_KEYS.map(k => (
-                            <td key={k} className="px-2 py-2.5 text-right text-sm">{fmtM(row[k])}</td>
+                            <td key={k} className="px-2 py-2.5 text-right text-sm hidden md:table-cell">{fmtM(row[k])}</td>
                           ))}
                           <td className="px-4 py-2.5 text-right font-bold text-sm text-primary">{(rowTotal(row)/1e6).toFixed(1)}Jt</td>
                           <td className="px-3 py-2.5">
@@ -407,10 +407,10 @@ export default function ArusKasPage() {
                       ))}
                       {/* Total Masuk */}
                       <tr className="bg-primary/5 font-semibold border-t border-primary/20">
-                        <td className="px-4 py-2.5 sticky left-0 bg-primary/5 text-sm text-primary font-bold pl-6">Total Kas Masuk</td>
+                        <td className="px-4 py-2.5 text-sm text-primary font-bold pl-6">Total Kas Masuk</td>
                         {MONTH_KEYS.map(k => {
                           const v = masukRows.reduce((s,r)=>s+r[k],0);
-                          return <td key={k} className="px-2 py-2.5 text-right text-sm font-semibold text-primary">{fmtM(v)}</td>;
+                          return <td key={k} className="px-2 py-2.5 text-right text-sm font-semibold text-primary hidden md:table-cell">{fmtM(v)}</td>;
                         })}
                         <td className="px-4 py-2.5 text-right font-bold text-primary">{(totalMasuk/1e6).toFixed(1)}Jt</td>
                         <td className="px-3 py-2.5" />
@@ -431,11 +431,11 @@ export default function ArusKasPage() {
                       </tr>
                       {keluarRows.map(row => (
                         <tr key={row.id} className="hover:bg-muted/20 group">
-                          <td className="px-4 py-2.5 sticky left-0 bg-card group-hover:bg-muted/20">
+                          <td className="px-4 py-2.5">
                             <span className="text-sm font-medium text-foreground pl-2">{row.nama}</span>
                           </td>
                           {MONTH_KEYS.map(k => (
-                            <td key={k} className="px-2 py-2.5 text-right text-sm">{fmtM(row[k])}</td>
+                            <td key={k} className="px-2 py-2.5 text-right text-sm hidden md:table-cell">{fmtM(row[k])}</td>
                           ))}
                           <td className="px-4 py-2.5 text-right font-bold text-sm text-destructive">{(rowTotal(row)/1e6).toFixed(1)}Jt</td>
                           <td className="px-3 py-2.5">
@@ -452,10 +452,10 @@ export default function ArusKasPage() {
                       ))}
                       {/* Total Keluar */}
                       <tr className="bg-destructive/5 font-semibold border-t border-destructive/20">
-                        <td className="px-4 py-2.5 sticky left-0 bg-destructive/5 text-sm text-destructive font-bold pl-6">Total Kas Keluar</td>
+                        <td className="px-4 py-2.5 text-sm text-destructive font-bold pl-6">Total Kas Keluar</td>
                         {MONTH_KEYS.map(k => {
                           const v = keluarRows.reduce((s,r)=>s+r[k],0);
-                          return <td key={k} className="px-2 py-2.5 text-right text-sm font-semibold text-destructive">{fmtM(v)}</td>;
+                          return <td key={k} className="px-2 py-2.5 text-right text-sm font-semibold text-destructive hidden md:table-cell">{fmtM(v)}</td>;
                         })}
                         <td className="px-4 py-2.5 text-right font-bold text-destructive">{(totalKeluar/1e6).toFixed(1)}Jt</td>
                         <td className="px-3 py-2.5" />
@@ -466,10 +466,10 @@ export default function ArusKasPage() {
                   {/* Neto row */}
                   {activeTab === "semua" && (
                     <tr className="bg-gold/5 border-t-2 border-gold/30 font-bold">
-                      <td className="px-4 py-3 sticky left-0 bg-gold/5 text-sm text-gold font-bold">Arus Kas Neto</td>
+                      <td className="px-4 py-3 text-sm text-gold font-bold">Arus Kas Neto</td>
                       {MONTH_KEYS.map(k => {
                         const v = masukRows.reduce((s,r)=>s+r[k],0) - keluarRows.reduce((s,r)=>s+r[k],0);
-                        return <td key={k} className={cn("px-2 py-3 text-right text-sm font-bold", v>0?"text-primary":v<0?"text-destructive":"text-muted-foreground/30")}>{v===0?<span className="text-muted-foreground/30">—</span>:<span>{(v/1e6).toFixed(1)}Jt</span>}</td>;
+                        return <td key={k} className={cn("px-2 py-3 text-right text-sm font-bold hidden md:table-cell", v>0?"text-primary":v<0?"text-destructive":"text-muted-foreground/30")}>{v===0?<span className="text-muted-foreground/30">—</span>:<span>{(v/1e6).toFixed(1)}Jt</span>}</td>;
                       })}
                       <td className={cn("px-4 py-3 text-right font-bold text-sm", totalNeto>=0?"text-primary":"text-destructive")}>{(totalNeto/1e6).toFixed(1)}Jt</td>
                       <td className="px-3 py-3"/>

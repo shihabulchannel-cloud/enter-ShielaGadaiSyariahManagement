@@ -1,11 +1,10 @@
 import { useState } from "react";
-import {
-  dummyTransaksi, dummyNasabah, dummyBarang, dummyCabang,
-  TransaksiGadai, formatCurrency, formatDate,
-  getStatusTransaksiColor, getLabelStatus,
-} from "@/lib/dummy-data";
 import { useCabang } from "@/hooks/use-cabang";
-import { useLocalStorage } from "@/hooks/use-local-storage";
+import { useSupabaseTransaksi } from "@/hooks/use-supabase-transaksi";
+import { useSupabaseNasabah } from "@/hooks/use-supabase-nasabah";
+import { useSupabaseBarang } from "@/hooks/use-supabase-barang";
+import { useSupabaseCabang } from "@/hooks/use-supabase-cabang";
+import { formatCurrency, formatDate, getStatusTransaksiColor, getLabelStatus } from "@/lib/dummy-data";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,154 +13,100 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   HandCoins, Plus, Search, Eye, RefreshCw, CheckCircle,
-  ChevronLeft, ChevronRight, FileText, Printer, Calculator
+  ChevronLeft, ChevronRight, FileText, Printer, Calculator, Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
-function generateAkadHtml(trx: TransaksiGadai, ujrahTotal: number): string {
-  const terbilang = (n: number) => n.toLocaleString("id-ID");
+// ---------- Akad HTML Generator ----------
+function generateAkadHtml(trx: {
+  nomor_transaksi: string; nilai_pinjaman: number; ujrah_per_bulan: number;
+  tanggal_gadai: string; tanggal_jatuh_tempo: string;
+  nasabah_nama?: string; barang_nama?: string; cabang_nama?: string;
+}, ujrahTotal: number): string {
   const today = new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" });
-  return `<!DOCTYPE html>
-<html lang="id">
-<head>
-<meta charset="UTF-8"/>
+  return `<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"/>
 <title>Akad Rahn - ${trx.nomor_transaksi}</title>
 <style>
-  * { box-sizing: border-box; }
-  body { font-family: Arial, sans-serif; font-size: 12px; margin: 0; padding: 32px; color: #111; }
-  .header { text-align: center; border-bottom: 3px double #333; padding-bottom: 12px; margin-bottom: 16px; }
-  .logo-area { display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 6px; }
-  .logo-area img { width: 48px; height: 48px; object-fit: contain; }
-  h1 { font-size: 16px; margin: 4px 0; letter-spacing: 1px; }
-  h2 { font-size: 13px; margin: 2px 0; color: #555; font-weight: normal; }
-  .nomor { font-size: 13px; font-weight: bold; margin-top: 8px; }
-  .section { margin: 14px 0; }
-  .section-title { font-size: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #999; padding-bottom: 4px; margin-bottom: 8px; }
-  table { width: 100%; border-collapse: collapse; }
-  td { padding: 5px 8px; vertical-align: top; }
-  td:first-child { width: 42%; color: #555; }
-  td:last-child { font-weight: 600; }
-  .value-box { background: #f5f5f5; border: 1px solid #ddd; border-radius: 6px; padding: 10px 14px; margin: 10px 0; }
-  .value-box .amount { font-size: 20px; font-weight: bold; color: #1a6a42; }
-  .terms { font-size: 10.5px; line-height: 1.7; color: #444; margin-top: 6px; }
-  .terms ol { margin: 4px 0; padding-left: 18px; }
-  .sign-area { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 32px; }
-  .sign-box { text-align: center; }
-  .sign-line { border-top: 1px solid #333; margin-top: 60px; padding-top: 4px; }
-  .watermark { position: fixed; bottom: 40px; right: 40px; opacity: 0.05; font-size: 60px; font-weight: bold; transform: rotate(-30deg); color: #000; pointer-events: none; }
-  @media print { body { margin: 20px; } }
-</style>
-</head>
-<body>
-<div class="watermark">SHIELA GADAI</div>
+body{font-family:Arial,sans-serif;font-size:12px;margin:0;padding:32px;color:#111}
+.header{text-align:center;border-bottom:3px double #333;padding-bottom:12px;margin-bottom:16px}
+.logo-area{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:6px}
+.logo-area img{width:48px;height:48px;object-fit:contain}
+h1{font-size:16px;margin:4px 0;letter-spacing:1px}h2{font-size:13px;margin:2px 0;color:#555;font-weight:normal}
+.nomor{font-size:13px;font-weight:bold;margin-top:8px}
+.section{margin:14px 0}.section-title{font-size:12px;font-weight:bold;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid #999;padding-bottom:4px;margin-bottom:8px}
+table{width:100%;border-collapse:collapse}td{padding:5px 8px;vertical-align:top}td:first-child{width:42%;color:#555}td:last-child{font-weight:600}
+.value-box{background:#f5f5f5;border:1px solid #ddd;border-radius:6px;padding:10px 14px;margin:10px 0}
+.value-box .amount{font-size:20px;font-weight:bold;color:#1a6a42}
+.terms{font-size:10.5px;line-height:1.7;color:#444}.terms ol{margin:4px 0;padding-left:18px}
+.sign-area{display:grid;grid-template-columns:1fr 1fr;gap:30px;margin-top:32px}
+.sign-box{text-align:center}.sign-line{border-top:1px solid #333;margin-top:60px;padding-top:4px}
+@media print{body{margin:20px}}
+</style></head><body>
 <div class="header">
   <div class="logo-area">
-    <img src="https://grazia-prod.oss-ap-southeast-1.aliyuncs.com/resources/uid_100059471/b1dd8944-57af-49.png" crossorigin="anonymous" />
-    <div>
-      <h1>SHIELA GADAI SYARIAH</h1>
-      <h2>Jasa Gadai Berbasis Prinsip Syariah Islam — Bebas Riba</h2>
-    </div>
+    <img src="https://grazia-prod.oss-ap-southeast-1.aliyuncs.com/resources/uid_100059471/b1dd8944-57af-49.png" crossorigin="anonymous"/>
+    <div><h1>SHIELA GADAI SYARIAH</h1><h2>Jasa Gadai Berbasis Prinsip Syariah Islam — Bebas Riba</h2></div>
   </div>
   <div class="nomor">AKAD GADAI SYARIAH (RAHN) — ${trx.nomor_transaksi}</div>
 </div>
-
-<div class="section">
-  <div class="section-title">Data Akad</div>
-  <table>
-    <tr><td>Tanggal Akad</td><td>${today}</td></tr>
-    <tr><td>Cabang</td><td>${trx.cabang_nama || "Cabang Pusat"}</td></tr>
-    <tr><td>No. Transaksi</td><td>${trx.nomor_transaksi}</td></tr>
-  </table>
-</div>
-
-<div class="section">
-  <div class="section-title">Pihak Pertama — Rahin (Nasabah)</div>
-  <table>
-    <tr><td>Nama Lengkap</td><td>${trx.nasabah_nama || "-"}</td></tr>
-  </table>
-</div>
-
-<div class="section">
-  <div class="section-title">Barang Jaminan — Marhun</div>
-  <table>
-    <tr><td>Nama Barang</td><td>${trx.barang_nama || "-"}</td></tr>
-    <tr><td>Kondisi</td><td>Baik (sesuai kesepakatan)</td></tr>
-    <tr><td>Lokasi Simpan</td><td>${trx.cabang_nama || "Cabang Pusat"}</td></tr>
-  </table>
-</div>
-
-<div class="section">
-  <div class="section-title">Rincian Pembiayaan</div>
-  <div class="value-box">
-    <div style="color:#555;font-size:11px;margin-bottom:2px;">Nilai Pinjaman (Marhun Bih)</div>
-    <div class="amount">Rp ${terbilang(trx.nilai_pinjaman)}</div>
-  </div>
-  <table>
-    <tr><td>Ujrah per Bulan</td><td>Rp ${terbilang(trx.ujrah_per_bulan)} (${((trx.ujrah_per_bulan/trx.nilai_pinjaman)*100).toFixed(1)}%/bulan)</td></tr>
-    <tr><td>Total Ujrah</td><td>Rp ${terbilang(ujrahTotal)}</td></tr>
-    <tr><td>Tanggal Gadai</td><td>${trx.tanggal_gadai}</td></tr>
-    <tr><td>Jatuh Tempo</td><td><strong>${trx.tanggal_jatuh_tempo}</strong></td></tr>
-  </table>
-</div>
-
-<div class="section">
-  <div class="section-title">Ketentuan Akad Rahn Syariah</div>
-  <div class="terms">
-    <ol>
-      <li>Akad ini dilaksanakan atas dasar prinsip syariah Islam dengan sistem <strong>Rahn</strong> (gadai syariah) yang bebas dari unsur riba.</li>
-      <li>Nasabah (Rahin) menyerahkan barang jaminan (Marhun) kepada Shiela Gadai Syariah (Murtahin) sebagai jaminan atas pinjaman yang diterima.</li>
-      <li>Biaya penyimpanan dan pemeliharaan (Ujrah) sebesar <strong>Rp ${terbilang(trx.ujrah_per_bulan)}/bulan</strong> dihitung dari nilai taksiran barang jaminan.</li>
-      <li>Nasabah berhak menebus barang jaminan kapan saja dengan membayar pokok pinjaman beserta ujrah yang telah berjalan.</li>
-      <li>Jika nasabah tidak dapat menebus dalam waktu yang ditentukan, nasabah dapat mengajukan perpanjangan akad.</li>
-      <li>Apabila nasabah tidak menebus atau memperpanjang setelah jatuh tempo, murtahin berhak menjual barang jaminan melalui lelang terbuka untuk menutupi nilai pinjaman.</li>
-      <li>Kelebihan hasil penjaulan lelang dari nilai pinjaman akan dikembalikan kepada nasabah.</li>
-      <li>Akad ini dibuat dan ditandatangani dengan kesadaran penuh dan tanpa paksaan dari kedua belah pihak.</li>
-    </ol>
-  </div>
-</div>
-
+<div class="section"><div class="section-title">Data Akad</div>
+<table><tr><td>Tanggal Akad</td><td>${today}</td></tr><tr><td>Cabang</td><td>${trx.cabang_nama || "-"}</td></tr><tr><td>No. Transaksi</td><td>${trx.nomor_transaksi}</td></tr></table></div>
+<div class="section"><div class="section-title">Pihak Pertama — Rahin (Nasabah)</div>
+<table><tr><td>Nama Lengkap</td><td>${trx.nasabah_nama || "-"}</td></tr></table></div>
+<div class="section"><div class="section-title">Barang Jaminan — Marhun</div>
+<table><tr><td>Nama Barang</td><td>${trx.barang_nama || "-"}</td></tr><tr><td>Lokasi Simpan</td><td>${trx.cabang_nama || "-"}</td></tr></table></div>
+<div class="section"><div class="section-title">Rincian Pembiayaan</div>
+<div class="value-box"><div style="color:#555;font-size:11px;margin-bottom:2px">Nilai Pinjaman (Marhun Bih)</div>
+<div class="amount">Rp ${trx.nilai_pinjaman.toLocaleString("id-ID")}</div></div>
+<table>
+<tr><td>Ujrah per Bulan</td><td>Rp ${trx.ujrah_per_bulan.toLocaleString("id-ID")}</td></tr>
+<tr><td>Total Ujrah</td><td>Rp ${ujrahTotal.toLocaleString("id-ID")}</td></tr>
+<tr><td>Tanggal Gadai</td><td>${trx.tanggal_gadai}</td></tr>
+<tr><td>Jatuh Tempo</td><td><strong>${trx.tanggal_jatuh_tempo}</strong></td></tr>
+</table></div>
+<div class="section"><div class="section-title">Ketentuan Akad Rahn Syariah</div>
+<div class="terms"><ol>
+<li>Akad ini dilaksanakan atas dasar prinsip syariah Islam dengan sistem <strong>Rahn</strong> (gadai syariah) yang bebas dari unsur riba.</li>
+<li>Nasabah (Rahin) menyerahkan barang jaminan (Marhun) kepada Shiela Gadai Syariah (Murtahin) sebagai jaminan atas pinjaman yang diterima.</li>
+<li>Biaya penyimpanan dan pemeliharaan (Ujrah) dihitung dari nilai taksiran barang jaminan.</li>
+<li>Nasabah berhak menebus barang jaminan kapan saja dengan membayar pokok pinjaman beserta ujrah yang telah berjalan.</li>
+<li>Apabila nasabah tidak menebus setelah jatuh tempo, murtahin berhak menjual melalui lelang terbuka.</li>
+<li>Kelebihan hasil penjualan akan dikembalikan kepada nasabah.</li>
+</ol></div></div>
 <div class="sign-area">
-  <div class="sign-box">
-    <p>Pihak Kedua — Murtahin</p>
-    <p style="color:#555;font-size:10px;">Shiela Gadai Syariah</p>
-    <div class="sign-line">
-      <strong>( __________________ )</strong>
-      <p style="font-size:10px;color:#555;">Kepala Cabang / Pengelola</p>
-    </div>
-  </div>
-  <div class="sign-box">
-    <p>Pihak Pertama — Rahin</p>
-    <p style="color:#555;font-size:10px;">${trx.nasabah_nama || "Nasabah"}</p>
-    <div class="sign-line">
-      <strong>( __________________ )</strong>
-      <p style="font-size:10px;color:#555;">Tanda Tangan / Cap Jempol</p>
-    </div>
-  </div>
+<div class="sign-box"><p>Pihak Kedua — Murtahin</p><p style="color:#555;font-size:10px">Shiela Gadai Syariah</p>
+<div class="sign-line"><strong>( __________________ )</strong><p style="font-size:10px;color:#555">Kepala Cabang / Pengelola</p></div></div>
+<div class="sign-box"><p>Pihak Pertama — Rahin</p><p style="color:#555;font-size:10px">${trx.nasabah_nama || "Nasabah"}</p>
+<div class="sign-line"><strong>( __________________ )</strong><p style="font-size:10px;color:#555">Tanda Tangan / Cap Jempol</p></div></div>
 </div>
+<p style="text-align:center;margin-top:24px;font-size:10px;color:#999">Dokumen ini dicetak pada ${today} — Shiela Gadai Syariah</p>
+</body></html>`;
+}
 
-<p style="text-align:center;margin-top:24px;font-size:10px;color:#999;">
-  Dokumen ini dicetak pada ${today} — Shiela Gadai Syariah · Sistem Informasi Gadai Syariah
-</p>
-</body>
-</html>`;
+function printAkad(trx: { nomor_transaksi: string; nilai_pinjaman: number; ujrah_per_bulan: number; tanggal_gadai: string; tanggal_jatuh_tempo: string; nasabah_nama?: string; barang_nama?: string; cabang_nama?: string; }, ujrahTotal: number) {
+  const win = window.open("", "_blank", "width=850,height=700");
+  if (win) { win.document.write(generateAkadHtml(trx, ujrahTotal)); win.document.close(); setTimeout(() => { win.focus(); win.print(); }, 600); }
 }
 
 export default function TransaksiPage() {
   const { toast } = useToast();
   const { selectedCabang } = useCabang();
+  const { data: cabangList } = useSupabaseCabang();
+  const { data: nasabahList } = useSupabaseNasabah(null);
+  const { data: barangList } = useSupabaseBarang(null);
+  const { data: transaksiList, loading, insert, updateStatus } = useSupabaseTransaksi(selectedCabang?.id ?? null);
+
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [page, setPage] = useState(1);
   const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [viewOpen, setViewOpen] = useState(false);
-  const [selected, setSelected] = useState<TransaksiGadai | null>(null);
-  const [transaksiList, setTransaksiList] = useLocalStorage<TransaksiGadai[]>("shiela-transaksi", dummyTransaksi);
-  const [nasabahList] = useLocalStorage("shiela-nasabah", dummyNasabah);
-  const [barangList] = useLocalStorage("shiela-barang", dummyBarang);
+  const [selected, setSelected] = useState<typeof transaksiList[0] | null>(null);
 
   const [form, setForm] = useState({
-    nasabah_id: "nsb-001", barang_id: "brg-001", cabang_id: "cbg-001",
+    nasabah_id: "", barang_id: "", cabang_id: "",
     nilai_pinjaman: "", ujrah_per_bulan: "", tanggal_gadai: new Date().toISOString().split("T")[0],
     durasi_bulan: "3",
   });
@@ -170,110 +115,93 @@ export default function TransaksiPage() {
 
   const perPage = 8;
   const filtered = transaksiList.filter((t) => {
-    const matchSearch = t.nomor_transaksi.toLowerCase().includes(search.toLowerCase()) ||
-      (t.nasabah_nama || "").toLowerCase().includes(search.toLowerCase()) ||
-      (t.barang_nama || "").toLowerCase().includes(search.toLowerCase());
+    const q = search.toLowerCase();
+    const nasabahNama = (t.nasabah as { nama_lengkap: string } | null)?.nama_lengkap || "";
+    const barangNama = (t.barang as { nama_barang: string } | null)?.nama_barang || "";
+    const matchSearch = t.nomor_transaksi.toLowerCase().includes(q) || nasabahNama.toLowerCase().includes(q) || barangNama.toLowerCase().includes(q);
     const matchStatus = filterStatus === "all" || t.status === filterStatus;
-    const matchCabang = !selectedCabang || t.cabang_id === selectedCabang.id;
-    return matchSearch && matchStatus && matchCabang;
+    return matchSearch && matchStatus;
   });
   const paginated = filtered.slice((page - 1) * perPage, page * perPage);
   const totalPages = Math.ceil(filtered.length / perPage);
 
-  const buildTransaction = () => {
-    const nasabah = (nasabahList as typeof dummyNasabah).find(n => n.id === form.nasabah_id) || dummyNasabah.find(n => n.id === form.nasabah_id);
-    const barang = (barangList as typeof dummyBarang).find(b => b.id === form.barang_id) || dummyBarang.find(b => b.id === form.barang_id);
-    const cabang = dummyCabang.find(c => c.id === form.cabang_id);
-    const jatuhTempo = new Date(form.tanggal_gadai);
-    jatuhTempo.setMonth(jatuhTempo.getMonth() + parseInt(form.durasi_bulan));
-    const ujrahPerBulan = form.ujrah_per_bulan ? parseFloat(form.ujrah_per_bulan) : ujrahEstimasi;
-    return {
-      newTrx: {
-        id: `trx-${Date.now()}`,
-        nomor_transaksi: `TRX-2026-${String(transaksiList.length + 1).padStart(3, "0")}`,
+  const buildJatuhTempo = () => {
+    const d = new Date(form.tanggal_gadai);
+    d.setMonth(d.getMonth() + parseInt(form.durasi_bulan));
+    return d.toISOString().split("T")[0];
+  };
+
+  const handleSave = async () => {
+    if (!form.nilai_pinjaman || !form.nasabah_id || !form.barang_id) {
+      toast({ title: "Error", description: "Nasabah, barang, dan nilai pinjaman wajib diisi.", variant: "destructive" });
+      return;
+    }
+    setSaving(true);
+    try {
+      const ujrahPerBulan = form.ujrah_per_bulan ? parseFloat(form.ujrah_per_bulan) : ujrahEstimasi;
+      const nomor = `TRX-${new Date().getFullYear()}-${String(transaksiList.length + 1).padStart(3, "0")}`;
+      await insert({
+        nomor_transaksi: nomor,
         nasabah_id: form.nasabah_id,
-        nasabah_nama: nasabah?.nama_lengkap,
         barang_id: form.barang_id,
-        barang_nama: barang?.nama_barang,
-        cabang_id: form.cabang_id,
-        cabang_nama: cabang?.nama_cabang,
+        cabang_id: form.cabang_id || selectedCabang?.id || cabangList[0]?.id || null,
         nilai_pinjaman: parseFloat(form.nilai_pinjaman),
         ujrah_per_bulan: ujrahPerBulan,
         tanggal_gadai: form.tanggal_gadai,
-        tanggal_jatuh_tempo: jatuhTempo.toISOString().split("T")[0],
-        status: "aktif" as const,
-        created_at: new Date().toISOString().split("T")[0],
-      } as TransaksiGadai,
-      ujrahTotal: ujrahPerBulan * parseInt(form.durasi_bulan),
-    };
+        tanggal_jatuh_tempo: buildJatuhTempo(),
+        status: "aktif",
+      });
+      setOpen(false);
+      toast({ title: "Berhasil", description: `Transaksi ${nomor} berhasil disimpan.` });
+    } catch (e: unknown) {
+      toast({ title: "Error", description: (e as Error).message, variant: "destructive" });
+    } finally { setSaving(false); }
   };
 
-  const handleSave = () => {
-    if (!form.nilai_pinjaman || !form.nasabah_id) {
-      toast({ title: "Error", description: "Isi semua field yang wajib.", variant: "destructive" });
+  const handleBuatAkad = async () => {
+    if (!form.nilai_pinjaman || !form.nasabah_id || !form.barang_id) {
+      toast({ title: "Error", description: "Nasabah, barang, dan nilai pinjaman wajib diisi.", variant: "destructive" });
       return;
     }
-    const { newTrx } = buildTransaction();
-    setTransaksiList([...transaksiList, newTrx]);
-    setOpen(false);
-    toast({ title: "Berhasil", description: `Transaksi ${newTrx.nomor_transaksi} berhasil disimpan.` });
-  };
-
-  const handleBuatAkad = () => {
-    if (!form.nilai_pinjaman || !form.nasabah_id) {
-      toast({ title: "Error", description: "Isi semua field yang wajib.", variant: "destructive" });
-      return;
-    }
-    const { newTrx, ujrahTotal } = buildTransaction();
-    setTransaksiList([...transaksiList, newTrx]);
-    setOpen(false);
-
-    // Generate & print akad in new window
-    const akadHtml = generateAkadHtml(newTrx, ujrahTotal);
-    const win = window.open("", "_blank", "width=850,height=700");
-    if (win) {
-      win.document.write(akadHtml);
-      win.document.close();
-      setTimeout(() => { win.focus(); win.print(); }, 600);
-    }
-    toast({ title: "Akad dibuat!", description: `${newTrx.nomor_transaksi} — Dialog cetak akan terbuka.` });
-  };
-
-  const handleCetakAkad = (trx: TransaksiGadai) => {
-    const ujrahTotal = trx.ujrah_per_bulan * 3; // estimate
-    const akadHtml = generateAkadHtml(trx, ujrahTotal);
-    const win = window.open("", "_blank", "width=850,height=700");
-    if (win) {
-      win.document.write(akadHtml);
-      win.document.close();
-      setTimeout(() => { win.focus(); win.print(); }, 600);
-    }
-  };
-
-  const handlePerpanjang = (trx: TransaksiGadai) => {
-    setTransaksiList(prev => prev.map(t => t.id === trx.id ? { ...t, status: "diperpanjang" as const } : t));
-    toast({ title: "Berhasil", description: `Transaksi ${trx.nomor_transaksi} diperpanjang.` });
-  };
-
-  const handleLunas = (trx: TransaksiGadai) => {
-    setTransaksiList(prev => prev.map(t => t.id === trx.id ? {
-      ...t, status: "lunas" as const,
-      tanggal_pelunasan: new Date().toISOString().split("T")[0],
-    } : t));
-    toast({ title: "Berhasil", description: `Transaksi ${trx.nomor_transaksi} telah dilunasi.` });
+    setSaving(true);
+    try {
+      const ujrahPerBulan = form.ujrah_per_bulan ? parseFloat(form.ujrah_per_bulan) : ujrahEstimasi;
+      const nomor = `TRX-${new Date().getFullYear()}-${String(transaksiList.length + 1).padStart(3, "0")}`;
+      const nasabah = nasabahList.find(n => n.id === form.nasabah_id);
+      const barang = barangList.find(b => b.id === form.barang_id);
+      const cabang = cabangList.find(c => c.id === (form.cabang_id || selectedCabang?.id || cabangList[0]?.id));
+      const jatuhTempo = buildJatuhTempo();
+      await insert({
+        nomor_transaksi: nomor, nasabah_id: form.nasabah_id, barang_id: form.barang_id,
+        cabang_id: cabang?.id || null,
+        nilai_pinjaman: parseFloat(form.nilai_pinjaman), ujrah_per_bulan: ujrahPerBulan,
+        tanggal_gadai: form.tanggal_gadai, tanggal_jatuh_tempo: jatuhTempo, status: "aktif",
+      });
+      setOpen(false);
+      printAkad({
+        nomor_transaksi: nomor, nilai_pinjaman: parseFloat(form.nilai_pinjaman),
+        ujrah_per_bulan: ujrahPerBulan, tanggal_gadai: form.tanggal_gadai, tanggal_jatuh_tempo: jatuhTempo,
+        nasabah_nama: nasabah?.nama_lengkap, barang_nama: barang?.nama_barang, cabang_nama: cabang?.nama_cabang,
+      }, ujrahPerBulan * parseInt(form.durasi_bulan));
+      toast({ title: "Akad dibuat!", description: `${nomor} — Dialog cetak akan terbuka.` });
+    } catch (e: unknown) {
+      toast({ title: "Error", description: (e as Error).message, variant: "destructive" });
+    } finally { setSaving(false); }
   };
 
   const stats = {
     aktif: transaksiList.filter(t => t.status === "aktif").length,
     macet: transaksiList.filter(t => t.status === "macet").length,
     jatuhTempo: transaksiList.filter(t => {
-      const d = new Date(t.tanggal_jatuh_tempo);
-      const today = new Date();
-      const diff = (d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24);
+      const diff = (new Date(t.tanggal_jatuh_tempo).getTime() - Date.now()) / 86400000;
       return diff <= 7 && diff >= 0 && t.status === "aktif";
     }).length,
     lunas: transaksiList.filter(t => t.status === "lunas").length,
   };
+
+  const getNasabahNama = (t: typeof transaksiList[0]) => (t.nasabah as { nama_lengkap: string } | null)?.nama_lengkap || "-";
+  const getBarangNama = (t: typeof transaksiList[0]) => (t.barang as { nama_barang: string } | null)?.nama_barang || "-";
+  const getCabangNama = (t: typeof transaksiList[0]) => (t.cabang as { nama_cabang: string } | null)?.nama_cabang || "-";
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -284,30 +212,24 @@ export default function TransaksiPage() {
         </div>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button className="gap-2 gradient-primary shadow-emerald">
-              <Plus className="w-4 h-4" /> Transaksi Baru
-            </Button>
+            <Button className="gap-2 gradient-primary shadow-emerald"><Plus className="w-4 h-4" /> Transaksi Baru</Button>
           </DialogTrigger>
           <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Transaksi Gadai Syariah (Akad Rahn)</DialogTitle>
-            </DialogHeader>
+            <DialogHeader><DialogTitle>Transaksi Gadai Syariah (Akad Rahn)</DialogTitle></DialogHeader>
             <div className="grid grid-cols-2 gap-4 mt-2">
               <div className="col-span-2 space-y-1.5">
                 <Label>Nasabah *</Label>
                 <Select value={form.nasabah_id} onValueChange={v => setForm({...form, nasabah_id: v})}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {(nasabahList as typeof dummyNasabah).map(n => <SelectItem key={n.id} value={n.id}>{n.nama_lengkap}</SelectItem>)}
-                  </SelectContent>
+                  <SelectTrigger><SelectValue placeholder="Pilih nasabah" /></SelectTrigger>
+                  <SelectContent>{nasabahList.map(n => <SelectItem key={n.id} value={n.id}>{n.nama_lengkap}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div className="col-span-2 space-y-1.5">
                 <Label>Barang Jaminan *</Label>
                 <Select value={form.barang_id} onValueChange={v => setForm({...form, barang_id: v})}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Pilih barang" /></SelectTrigger>
                   <SelectContent>
-                    {(barangList as typeof dummyBarang).filter(b => b.status === "aktif").map(b => (
+                    {barangList.filter(b => b.status === "aktif").map(b => (
                       <SelectItem key={b.id} value={b.id}>{b.nama_barang} — {b.kode_barang}</SelectItem>
                     ))}
                   </SelectContent>
@@ -319,7 +241,7 @@ export default function TransaksiPage() {
               </div>
               <div className="space-y-1.5">
                 <Label>Ujrah/Bulan (Rp)</Label>
-                <Input type="number" placeholder={ujrahEstimasi ? String(ujrahEstimasi) : "otomatis 2%"} value={form.ujrah_per_bulan} onChange={e => setForm({...form, ujrah_per_bulan: e.target.value})} />
+                <Input type="number" placeholder={ujrahEstimasi ? String(Math.round(ujrahEstimasi)) : "otomatis 2%"} value={form.ujrah_per_bulan} onChange={e => setForm({...form, ujrah_per_bulan: e.target.value})} />
               </div>
               <div className="space-y-1.5">
                 <Label>Tanggal Gadai</Label>
@@ -329,34 +251,30 @@ export default function TransaksiPage() {
                 <Label>Durasi (Bulan)</Label>
                 <Select value={form.durasi_bulan} onValueChange={v => setForm({...form, durasi_bulan: v})}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {["1","2","3","4"].map(v => <SelectItem key={v} value={v}>{v} Bulan</SelectItem>)}
-                  </SelectContent>
+                  <SelectContent>{["1","2","3","4"].map(v => <SelectItem key={v} value={v}>{v} Bulan</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div className="col-span-2 space-y-1.5">
                 <Label>Cabang</Label>
-                <Select value={form.cabang_id} onValueChange={v => setForm({...form, cabang_id: v})}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{dummyCabang.map(c => <SelectItem key={c.id} value={c.id}>{c.nama_cabang}</SelectItem>)}</SelectContent>
+                <Select value={form.cabang_id || cabangList[0]?.id || ""} onValueChange={v => setForm({...form, cabang_id: v})}>
+                  <SelectTrigger><SelectValue placeholder="Pilih cabang" /></SelectTrigger>
+                  <SelectContent>{cabangList.map(c => <SelectItem key={c.id} value={c.id}>{c.nama_cabang}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               {form.nilai_pinjaman && (
-                <div className="col-span-2 p-3 rounded-lg bg-accent/50 border border-accent">
-                  <div className="flex items-center gap-2 text-sm">
-                    <Calculator className="w-4 h-4 text-primary" />
-                    <span className="text-muted-foreground">Estimasi ujrah 2%/bulan:</span>
-                    <span className="font-semibold text-primary">{formatCurrency(ujrahEstimasi)}/bulan</span>
-                  </div>
+                <div className="col-span-2 p-3 rounded-lg bg-accent/50 border border-accent flex items-center gap-2 text-sm">
+                  <Calculator className="w-4 h-4 text-primary flex-shrink-0" />
+                  <span className="text-muted-foreground">Estimasi ujrah 2%/bulan:</span>
+                  <span className="font-semibold text-primary">{formatCurrency(ujrahEstimasi)}/bulan</span>
                 </div>
               )}
             </div>
-            <div className="flex gap-2 justify-end mt-4">
+            <div className="flex gap-2 justify-end mt-4 flex-wrap">
               <Button variant="outline" onClick={() => setOpen(false)}>Batal</Button>
-              <Button variant="outline" className="gap-2" onClick={handleSave}>
-                Simpan Saja
+              <Button variant="outline" className="gap-2" onClick={handleSave} disabled={saving}>
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null} Simpan Saja
               </Button>
-              <Button className="gradient-primary shadow-emerald gap-2" onClick={handleBuatAkad}>
+              <Button className="gradient-primary shadow-emerald gap-2" onClick={handleBuatAkad} disabled={saving}>
                 <FileText className="w-4 h-4" /> Buat Akad
               </Button>
             </div>
@@ -364,16 +282,15 @@ export default function TransaksiPage() {
         </Dialog>
       </div>
 
-      {/* Quick Stats */}
+      {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
-          { label: "Aktif", value: stats.aktif, color: "bg-primary/10 text-primary border-primary/20" },
-          { label: "Jatuh Tempo", value: stats.jatuhTempo, color: "bg-orange-500/10 text-orange-600 border-orange-500/20" },
-          { label: "Macet", value: stats.macet, color: "bg-destructive/10 text-destructive border-destructive/20" },
-          { label: "Lunas", value: stats.lunas, color: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" },
+          { label: "Aktif", value: stats.aktif, color: "bg-primary/10 text-primary border-primary/20", status: "aktif" },
+          { label: "Jatuh Tempo", value: stats.jatuhTempo, color: "bg-orange-500/10 text-orange-600 border-orange-500/20", status: "all" },
+          { label: "Macet", value: stats.macet, color: "bg-destructive/10 text-destructive border-destructive/20", status: "macet" },
+          { label: "Lunas", value: stats.lunas, color: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20", status: "lunas" },
         ].map((s) => (
-          <button key={s.label}
-            onClick={() => { setFilterStatus(s.label === "Aktif" ? "aktif" : s.label === "Macet" ? "macet" : s.label === "Lunas" ? "lunas" : "all"); setPage(1); }}
+          <button key={s.label} onClick={() => { setFilterStatus(s.status); setPage(1); }}
             className={cn("p-3 rounded-xl border text-left transition-smooth hover:scale-[1.02]", s.color)}>
             <p className="text-2xl font-bold">{s.value}</p>
             <p className="text-xs font-medium opacity-80">{s.label}</p>
@@ -384,7 +301,7 @@ export default function TransaksiPage() {
       <Card className="shadow-sm">
         <CardHeader className="pb-3">
           <div className="flex flex-wrap gap-3">
-            <div className="relative flex-1 min-w-[200px]">
+            <div className="relative flex-1 min-w-[180px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input placeholder="Cari nomor transaksi, nasabah..." className="pl-9 h-9" value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} />
             </div>
@@ -401,83 +318,83 @@ export default function TransaksiPage() {
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-border bg-muted/30">
-                  <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 py-3">No. Transaksi</th>
-                  <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 py-3">Nasabah</th>
-                  <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 py-3 hidden md:table-cell">Barang</th>
-                  <th className="text-right text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 py-3">Pinjaman</th>
-                  <th className="text-right text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 py-3 hidden md:table-cell">Ujrah/Bln</th>
-                  <th className="text-center text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 py-3 hidden sm:table-cell">Jatuh Tempo</th>
-                  <th className="text-center text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 py-3">Status</th>
-                  <th className="text-center text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 py-3">Aksi</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {paginated.length === 0 ? (
-                  <tr><td colSpan={8} className="px-6 py-12 text-center text-muted-foreground text-sm">
-                    <HandCoins className="w-8 h-8 mx-auto mb-2 opacity-30" />Tidak ada transaksi
-                  </td></tr>
-                ) : paginated.map((t) => (
-                  <tr key={t.id} className="hover:bg-muted/30 transition-smooth">
-                    <td className="px-4 py-3.5"><span className="text-sm font-medium text-primary">{t.nomor_transaksi}</span></td>
-                    <td className="px-4 py-3.5">
-                      <div>
-                        <p className="text-sm font-medium text-foreground">{t.nasabah_nama}</p>
-                        <p className="text-xs text-muted-foreground hidden sm:block">{t.cabang_nama}</p>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3.5 hidden md:table-cell">
-                      <span className="text-sm text-muted-foreground truncate max-w-[140px] block">{t.barang_nama}</span>
-                    </td>
-                    <td className="px-4 py-3.5 text-right"><span className="text-sm font-semibold">{formatCurrency(t.nilai_pinjaman)}</span></td>
-                    <td className="px-4 py-3.5 text-right hidden md:table-cell"><span className="text-sm text-muted-foreground">{formatCurrency(t.ujrah_per_bulan)}</span></td>
-                    <td className="px-4 py-3.5 text-center hidden sm:table-cell"><span className="text-xs text-muted-foreground">{formatDate(t.tanggal_jatuh_tempo)}</span></td>
-                    <td className="px-4 py-3.5 text-center">
-                      <span className={cn("inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border", getStatusTransaksiColor(t.status))}>
-                        {getLabelStatus(t.status)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <div className="flex items-center justify-center gap-1">
-                        <Button variant="ghost" size="icon" className="w-8 h-8 text-muted-foreground hover:text-primary" onClick={() => { setSelected(t); setViewOpen(true); }}>
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                        {(t.status === "aktif" || t.status === "diperpanjang") && (
-                          <>
-                            <Button variant="ghost" size="icon" className="w-8 h-8 text-muted-foreground hover:text-blue-600" onClick={() => handlePerpanjang(t)}>
-                              <RefreshCw className="w-4 h-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="w-8 h-8 text-muted-foreground hover:text-emerald-600" onClick={() => handleLunas(t)}>
-                              <CheckCircle className="w-4 h-4" />
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </td>
+          {loading ? (
+            <div className="flex items-center justify-center py-16 gap-3 text-muted-foreground">
+              <Loader2 className="w-5 h-5 animate-spin" /> Memuat data...
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-border bg-muted/30">
+                    <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 py-3">No. Transaksi</th>
+                    <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 py-3">Nasabah</th>
+                    <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 py-3 hidden md:table-cell">Barang</th>
+                    <th className="text-right text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 py-3">Pinjaman</th>
+                    <th className="text-center text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 py-3 hidden sm:table-cell">Jatuh Tempo</th>
+                    <th className="text-center text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 py-3">Status</th>
+                    <th className="text-center text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 py-3">Aksi</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {paginated.length === 0 ? (
+                    <tr><td colSpan={7} className="px-6 py-12 text-center text-muted-foreground text-sm">
+                      <HandCoins className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                      {search ? "Tidak ada transaksi ditemukan" : "Belum ada transaksi."}
+                    </td></tr>
+                  ) : paginated.map((t) => (
+                    <tr key={t.id} className="hover:bg-muted/30 transition-smooth">
+                      <td className="px-4 py-3.5"><span className="text-sm font-medium text-primary">{t.nomor_transaksi}</span></td>
+                      <td className="px-4 py-3.5">
+                        <div>
+                          <p className="text-sm font-medium text-foreground">{getNasabahNama(t)}</p>
+                          <p className="text-xs text-muted-foreground hidden sm:block">{getCabangNama(t)}</p>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3.5 hidden md:table-cell">
+                        <span className="text-sm text-muted-foreground truncate max-w-[140px] block">{getBarangNama(t)}</span>
+                      </td>
+                      <td className="px-4 py-3.5 text-right"><span className="text-sm font-semibold">{formatCurrency(t.nilai_pinjaman)}</span></td>
+                      <td className="px-4 py-3.5 text-center hidden sm:table-cell">
+                        <span className="text-xs text-muted-foreground">{formatDate(t.tanggal_jatuh_tempo)}</span>
+                      </td>
+                      <td className="px-4 py-3.5 text-center">
+                        <span className={cn("inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border", getStatusTransaksiColor(t.status as "aktif" | "diperpanjang" | "lunas" | "macet" | "lelang"))}>
+                          {getLabelStatus(t.status)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <div className="flex items-center justify-center gap-1">
+                          <Button variant="ghost" size="icon" className="w-8 h-8 text-muted-foreground hover:text-primary" onClick={() => { setSelected(t); setViewOpen(true); }}>
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                          {(t.status === "aktif" || t.status === "diperpanjang") && (<>
+                            <Button variant="ghost" size="icon" className="w-8 h-8 text-muted-foreground hover:text-blue-600" onClick={async () => { await updateStatus(t.id, "diperpanjang"); toast({ title: "Diperpanjang" }); }}><RefreshCw className="w-4 h-4" /></Button>
+                            <Button variant="ghost" size="icon" className="w-8 h-8 text-muted-foreground hover:text-emerald-600" onClick={async () => { await updateStatus(t.id, "lunas", { tanggal_pelunasan: new Date().toISOString().split("T")[0] }); toast({ title: "Lunas" }); }}><CheckCircle className="w-4 h-4" /></Button>
+                          </>)}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
           {totalPages > 1 && (
-            <div className="flex items-center justify-between px-6 py-4 border-t border-border">
-              <p className="text-xs text-muted-foreground">Menampilkan {(page-1)*perPage+1}–{Math.min(page*perPage, filtered.length)} dari {filtered.length}</p>
+            <div className="flex items-center justify-between px-4 py-3 border-t border-border flex-wrap gap-2">
+              <p className="text-xs text-muted-foreground">{(page-1)*perPage+1}–{Math.min(page*perPage, filtered.length)} dari {filtered.length}</p>
               <div className="flex items-center gap-1">
-                <Button variant="outline" size="icon" className="w-8 h-8" disabled={page===1} onClick={() => setPage(p=>p-1)}><ChevronLeft className="w-4 h-4" /></Button>
-                {Array.from({length:totalPages},(_,i)=>(
+                <Button variant="outline" size="icon" className="w-8 h-8" disabled={page===1} onClick={()=>setPage(p=>p-1)}><ChevronLeft className="w-4 h-4"/></Button>
+                {Array.from({length:Math.min(totalPages,5)},(_,i)=>(
                   <Button key={i} variant={page===i+1?"default":"outline"} size="icon" className={cn("w-8 h-8 text-xs",page===i+1&&"gradient-primary")} onClick={()=>setPage(i+1)}>{i+1}</Button>
                 ))}
-                <Button variant="outline" size="icon" className="w-8 h-8" disabled={page===totalPages} onClick={() => setPage(p=>p+1)}><ChevronRight className="w-4 h-4" /></Button>
+                <Button variant="outline" size="icon" className="w-8 h-8" disabled={page===totalPages} onClick={()=>setPage(p=>p+1)}><ChevronRight className="w-4 h-4"/></Button>
               </div>
             </div>
           )}
         </CardContent>
       </Card>
 
-      {/* View Detail */}
       <Dialog open={viewOpen} onOpenChange={setViewOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>Detail Transaksi</DialogTitle></DialogHeader>
@@ -489,24 +406,22 @@ export default function TransaksiPage() {
                   <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-white/20">{getLabelStatus(selected.status)}</span>
                 </div>
                 <h3 className="text-xl font-bold">{selected.nomor_transaksi}</h3>
-                <p className="text-sm opacity-80 mt-1">{selected.tanggal_gadai} · {selected.cabang_nama}</p>
+                <p className="text-sm opacity-80 mt-1">{selected.tanggal_gadai} · {getCabangNama(selected)}</p>
               </div>
               <div className="grid grid-cols-2 gap-3 text-sm">
-                <div><p className="text-xs text-muted-foreground">Nasabah</p><p className="font-semibold">{selected.nasabah_nama}</p></div>
-                <div><p className="text-xs text-muted-foreground">Barang</p><p className="font-semibold">{selected.barang_nama}</p></div>
+                <div><p className="text-xs text-muted-foreground">Nasabah</p><p className="font-semibold">{getNasabahNama(selected)}</p></div>
+                <div><p className="text-xs text-muted-foreground">Barang</p><p className="font-semibold">{getBarangNama(selected)}</p></div>
                 <div><p className="text-xs text-muted-foreground">Nilai Pinjaman</p><p className="font-bold text-primary text-lg">{formatCurrency(selected.nilai_pinjaman)}</p></div>
                 <div><p className="text-xs text-muted-foreground">Ujrah/Bulan</p><p className="font-bold text-gold text-lg">{formatCurrency(selected.ujrah_per_bulan)}</p></div>
                 <div><p className="text-xs text-muted-foreground">Tanggal Gadai</p><p className="font-medium">{formatDate(selected.tanggal_gadai)}</p></div>
                 <div><p className="text-xs text-muted-foreground">Jatuh Tempo</p><p className="font-medium">{formatDate(selected.tanggal_jatuh_tempo)}</p></div>
-                {selected.tanggal_pelunasan && (
-                  <div><p className="text-xs text-muted-foreground">Dilunasi</p><p className="font-medium text-emerald-600">{formatDate(selected.tanggal_pelunasan)}</p></div>
-                )}
+                {selected.tanggal_pelunasan && <div><p className="text-xs text-muted-foreground">Dilunasi</p><p className="font-medium text-emerald-600">{formatDate(selected.tanggal_pelunasan)}</p></div>}
               </div>
               <div className="flex gap-2 pt-2">
-                <Button variant="outline" size="sm" className="gap-2 flex-1" onClick={() => handleCetakAkad(selected)}>
+                <Button variant="outline" size="sm" className="gap-2 flex-1" onClick={() => printAkad({ nomor_transaksi: selected.nomor_transaksi, nilai_pinjaman: selected.nilai_pinjaman, ujrah_per_bulan: selected.ujrah_per_bulan, tanggal_gadai: selected.tanggal_gadai, tanggal_jatuh_tempo: selected.tanggal_jatuh_tempo, nasabah_nama: getNasabahNama(selected), barang_nama: getBarangNama(selected), cabang_nama: getCabangNama(selected) }, selected.ujrah_per_bulan * 3)}>
                   <Printer className="w-4 h-4" /> Cetak Akad
                 </Button>
-                <Button variant="outline" size="sm" className="gap-2 flex-1" onClick={() => handleCetakAkad(selected)}>
+                <Button variant="outline" size="sm" className="gap-2 flex-1" onClick={() => printAkad({ nomor_transaksi: selected.nomor_transaksi, nilai_pinjaman: selected.nilai_pinjaman, ujrah_per_bulan: selected.ujrah_per_bulan, tanggal_gadai: selected.tanggal_gadai, tanggal_jatuh_tempo: selected.tanggal_jatuh_tempo, nasabah_nama: getNasabahNama(selected), barang_nama: getBarangNama(selected), cabang_nama: getCabangNama(selected) }, selected.ujrah_per_bulan * 3)}>
                   <FileText className="w-4 h-4" /> Bukti PDF
                 </Button>
               </div>

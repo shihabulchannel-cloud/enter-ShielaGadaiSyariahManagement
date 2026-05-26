@@ -10,7 +10,10 @@ import { Badge } from "@/components/ui/badge";
 import { useTheme } from "@/hooks/use-theme";
 import { useAuth } from "@/hooks/use-auth";
 import { useCabang } from "@/hooks/use-cabang";
-import { dummyCabang, dummyNasabah, dummyBarang, dummyTransaksi } from "@/lib/dummy-data";
+import { useSupabaseCabang } from "@/hooks/use-supabase-cabang";
+import { useSupabaseNasabah } from "@/hooks/use-supabase-nasabah";
+import { useSupabaseBarang } from "@/hooks/use-supabase-barang";
+import { useSupabaseTransaksi } from "@/hooks/use-supabase-transaksi";
 import { cn } from "@/lib/utils";
 
 interface NavbarProps {
@@ -36,6 +39,10 @@ export function Navbar({ onMobileMenuToggle }: NavbarProps) {
   const { theme, toggleTheme } = useTheme();
   const { profile } = useAuth();
   const { selectedCabang, setSelectedCabang } = useCabang();
+  const { data: cabangList } = useSupabaseCabang();
+  const { data: nasabahData } = useSupabaseNasabah(null);
+  const { data: barangData } = useSupabaseBarang(null);
+  const { data: transaksiData } = useSupabaseTransaksi(null);
 
   const [notifs, setNotifs] = useState(initialNotifications);
   const [searchQuery, setSearchQuery] = useState("");
@@ -55,30 +62,25 @@ export function Navbar({ onMobileMenuToggle }: NavbarProps) {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  // Search across all data from localStorage
   const searchResults = (() => {
     if (searchQuery.trim().length < 2) return [];
     const q = searchQuery.toLowerCase();
-    const nasabahList = getLocalList("shiela-nasabah", dummyNasabah);
-    const barangList = getLocalList("shiela-barang", dummyBarang);
-    const transaksiList = getLocalList("shiela-transaksi", dummyTransaksi);
-
     const results: Array<{ type: string; icon: typeof Users; label: string; sub: string; path: string }> = [];
 
-    nasabahList
-      .filter(n => n.nama_lengkap.toLowerCase().includes(q) || n.nik?.includes(q) || n.nomor_hp?.includes(q))
+    nasabahData
+      .filter(n => n.nama_lengkap.toLowerCase().includes(q) || (n.nik||"").includes(q) || (n.nomor_hp||"").includes(q))
       .slice(0, 3)
       .forEach(n => results.push({ type: "Nasabah", icon: Users, label: n.nama_lengkap, sub: n.nik || n.nomor_hp || "", path: "/nasabah" }));
 
-    barangList
+    barangData
       .filter(b => b.nama_barang.toLowerCase().includes(q) || b.kode_barang.toLowerCase().includes(q))
       .slice(0, 3)
       .forEach(b => results.push({ type: "Barang", icon: Package, label: b.nama_barang, sub: b.kode_barang, path: "/barang" }));
 
-    (transaksiList as typeof dummyTransaksi)
-      .filter(t => t.nomor_transaksi.toLowerCase().includes(q) || (t.nasabah_nama || "").toLowerCase().includes(q) || (t.barang_nama || "").toLowerCase().includes(q))
+    (transaksiData as typeof transaksiData)
+      .filter(t => t.nomor_transaksi.toLowerCase().includes(q))
       .slice(0, 3)
-      .forEach(t => results.push({ type: "Transaksi", icon: HandCoins, label: t.nomor_transaksi, sub: t.nasabah_nama || "", path: "/transaksi" }));
+      .forEach(t => results.push({ type: "Transaksi", icon: HandCoins, label: t.nomor_transaksi, sub: "", path: "/transaksi" }));
 
     return results;
   })();
@@ -170,7 +172,7 @@ export function Navbar({ onMobileMenuToggle }: NavbarProps) {
             <DropdownMenuItem onClick={() => setSelectedCabang(null)} className={cn("gap-2 cursor-pointer", !selectedCabang && "text-primary font-medium")}>
               <Building2 className="w-4 h-4" /> Semua Cabang
             </DropdownMenuItem>
-            {dummyCabang.map(c => (
+            {cabangList.map(c => (
               <DropdownMenuItem key={c.id} onClick={() => setSelectedCabang(c)} className={cn("gap-2 cursor-pointer", selectedCabang?.id === c.id && "text-primary font-medium")}>
                 <Building2 className="w-4 h-4" /> {c.nama_cabang}
               </DropdownMenuItem>

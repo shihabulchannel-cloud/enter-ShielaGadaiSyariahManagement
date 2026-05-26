@@ -2,47 +2,32 @@ import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import {
-  LayoutDashboard,
-  Users,
-  Package,
-  FileText,
-  CreditCard,
-  BarChart3,
-  Building2,
-  Settings,
-  ChevronLeft,
-  ChevronRight,
-  LogOut,
-  UserCircle,
-  HandCoins,
-  Wallet,
+  LayoutDashboard, Users, Package, FileText,
+  CreditCard, BarChart3, Building2, Settings,
+  ChevronLeft, ChevronRight, LogOut, UserCircle, HandCoins, Wallet,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { canAccess } from "@/lib/access-control";
 
 interface NavItem {
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   path: string;
   badge?: string;
-  roles?: string[];
 }
 
 const navItems: NavItem[] = [
-  { label: "Dashboard", icon: LayoutDashboard, path: "/dashboard" },
-  { label: "Data Nasabah", icon: Users, path: "/nasabah" },
-  { label: "Barang Jaminan", icon: Package, path: "/barang" },
-  { label: "Transaksi Gadai", icon: HandCoins, path: "/transaksi" },
-  { label: "Pembayaran", icon: CreditCard, path: "/pembayaran" },
-  { label: "Laporan", icon: BarChart3, path: "/laporan" },
-  { label: "Arus Kas", icon: Wallet, path: "/arus-kas" },
-  { label: "Data Cabang", icon: Building2, path: "/cabang", roles: ["super_admin", "owner"] },
-  { label: "Pengaturan", icon: Settings, path: "/pengaturan", roles: ["super_admin", "owner"] },
+  { label: "Dashboard",      icon: LayoutDashboard, path: "/dashboard" },
+  { label: "Data Nasabah",   icon: Users,           path: "/nasabah" },
+  { label: "Barang Jaminan", icon: Package,         path: "/barang" },
+  { label: "Transaksi Gadai",icon: HandCoins,       path: "/transaksi" },
+  { label: "Pembayaran",     icon: CreditCard,      path: "/pembayaran" },
+  { label: "Laporan",        icon: BarChart3,       path: "/laporan" },
+  { label: "Arus Kas",       icon: Wallet,          path: "/arus-kas" },
+  { label: "Data Cabang",    icon: Building2,       path: "/cabang" },
+  { label: "Pengaturan",     icon: Settings,        path: "/pengaturan" },
 ];
 
 export function Sidebar() {
@@ -51,6 +36,7 @@ export function Sidebar() {
   const { profile, signOut } = useAuth();
 
   const isActive = (path: string) => location.pathname === path;
+  const visibleItems = navItems.filter(item => canAccess(profile?.role, item.path));
 
   return (
     <aside
@@ -104,7 +90,7 @@ export function Sidebar() {
           </p>
         )}
 
-        {navItems.map((item) => {
+        {visibleItems.map((item) => {
           const Icon = item.icon;
           const active = isActive(item.path);
 

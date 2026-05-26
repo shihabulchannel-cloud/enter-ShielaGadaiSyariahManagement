@@ -1,10 +1,9 @@
 import { useState } from "react";
-import {
-  dummyBarang, BarangJaminan, dummyNasabah, dummyCabang,
-  formatCurrency, formatDate, getStatusBarangColor, getLabelStatus
-} from "@/lib/dummy-data";
 import { useCabang } from "@/hooks/use-cabang";
-import { useLocalStorage } from "@/hooks/use-local-storage";
+import { useSupabaseBarang } from "@/hooks/use-supabase-barang";
+import { useSupabaseNasabah } from "@/hooks/use-supabase-nasabah";
+import { useSupabaseCabang } from "@/hooks/use-supabase-cabang";
+import { formatCurrency, formatDate, getStatusBarangColor, getLabelStatus } from "@/lib/dummy-data";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,12 +11,11 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { Package, Plus, Search, Eye, Edit, QrCode, ChevronLeft, ChevronRight, Tag } from "lucide-react";
+import { Package, Plus, Search, Eye, QrCode, ChevronLeft, ChevronRight, Tag, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
-const kategoriIcons: Record<string, string> = {
+const kategoriLabels: Record<string, string> = {
   emas: "Emas", elektronik: "Elektronik", kendaraan: "Kendaraan",
   sertifikat: "Sertifikat", lainnya: "Lainnya",
 };
@@ -25,58 +23,65 @@ const kategoriIcons: Record<string, string> = {
 export default function BarangPage() {
   const { toast } = useToast();
   const { selectedCabang } = useCabang();
+  const { data: cabangList } = useSupabaseCabang();
+  const { data: nasabahList } = useSupabaseNasabah(selectedCabang?.id ?? null);
+  const { data: barangList, loading, insert } = useSupabaseBarang(selectedCabang?.id ?? null);
+
   const [search, setSearch] = useState("");
   const [filterKategori, setFilterKategori] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
   const [page, setPage] = useState(1);
   const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [viewOpen, setViewOpen] = useState(false);
-  const [selected, setSelected] = useState<BarangJaminan | null>(null);
-  const [barangList, setBarangList] = useLocalStorage<BarangJaminan[]>("shiela-barang", dummyBarang);
+  const [selected, setSelected] = useState<typeof barangList[0] | null>(null);
 
+  const defaultCabang = cabangList[0]?.id ?? "";
   const [form, setForm] = useState({
     nama_barang: "", kategori: "emas", merek: "", kondisi: "baik",
-    berat: "", estimasi_nilai: "", lokasi_penyimpanan: "", nasabah_id: "nsb-001", cabang_id: "cbg-001",
+    berat: "", estimasi_nilai: "", lokasi_penyimpanan: "", nasabah_id: "", cabang_id: "",
   });
 
   const perPage = 8;
   const filtered = barangList.filter((b) => {
-    const matchSearch = b.nama_barang.toLowerCase().includes(search.toLowerCase()) ||
-      b.kode_barang.toLowerCase().includes(search.toLowerCase()) ||
-      (b.nasabah_nama || "").toLowerCase().includes(search.toLowerCase());
-    const matchKategori = filterKategori === "all" || b.kategori === filterKategori;
-    const matchStatus = filterStatus === "all" || b.status === filterStatus;
-    const matchCabang = !selectedCabang || b.cabang_id === selectedCabang.id;
-    return matchSearch && matchKategori && matchStatus && matchCabang;
+    const q = search.toLowerCase();
+    const matchSearch = b.nama_barang.toLowerCase().includes(q) || b.kode_barang.toLowerCase().includes(q);
+    const matchKat = filterKategori === "all" || b.kategori === filterKategori;
+    const matchSt = filterStatus === "all" || b.status === filterStatus;
+    return matchSearch && matchKat && matchSt;
   });
   const paginated = filtered.slice((page - 1) * perPage, page * perPage);
   const totalPages = Math.ceil(filtered.length / perPage);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.nama_barang || !form.estimasi_nilai) {
       toast({ title: "Error", description: "Nama barang dan estimasi nilai wajib diisi.", variant: "destructive" });
       return;
     }
-    const nasabah = dummyNasabah.find(n => n.id === form.nasabah_id);
-    const newBarang: BarangJaminan = {
-      id: `brg-${Date.now()}`,
-      kode_barang: `BRG-2026-${String(barangList.length + 1).padStart(3, "0")}`,
-      nama_barang: form.nama_barang,
-      kategori: form.kategori as BarangJaminan["kategori"],
-      merek: form.merek,
-      kondisi: form.kondisi as BarangJaminan["kondisi"],
-      berat: form.berat ? parseFloat(form.berat) : undefined,
-      estimasi_nilai: parseFloat(form.estimasi_nilai),
-      lokasi_penyimpanan: form.lokasi_penyimpanan,
-      status: "aktif",
-      nasabah_id: form.nasabah_id,
-      nasabah_nama: nasabah?.nama_lengkap,
-      cabang_id: form.cabang_id,
-      created_at: new Date().toISOString().split("T")[0],
-    };
-    setBarangList([...barangList, newBarang]);
-    setOpen(false);
-    toast({ title: "Berhasil", description: "Barang jaminan berhasil ditambahkan." });
+    setSaving(true);
+    try {
+      const kode = `BRG-${new Date().getFullYear()}-${String(barangList.length + 1).padStart(3, "0")}`;
+      await insert({
+        kode_barang: kode,
+        nama_barang: form.nama_barang,
+        kategori: form.kategori,
+        merek: form.merek || null,
+        kondisi: form.kondisi || null,
+        berat: form.berat ? parseFloat(form.berat) : null,
+        estimasi_nilai: parseFloat(form.estimasi_nilai),
+        lokasi_penyimpanan: form.lokasi_penyimpanan || null,
+        status: "aktif",
+        nasabah_id: form.nasabah_id || null,
+        cabang_id: form.cabang_id || selectedCabang?.id || defaultCabang || null,
+      });
+      setOpen(false);
+      setForm({ nama_barang: "", kategori: "emas", merek: "", kondisi: "baik", berat: "", estimasi_nilai: "", lokasi_penyimpanan: "", nasabah_id: "", cabang_id: "" });
+      toast({ title: "Berhasil", description: "Barang jaminan berhasil ditambahkan." });
+    } catch (e: unknown) {
+      toast({ title: "Error", description: (e as Error).message, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -93,9 +98,7 @@ export default function BarangPage() {
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Input Barang Jaminan</DialogTitle>
-            </DialogHeader>
+            <DialogHeader><DialogTitle>Input Barang Jaminan</DialogTitle></DialogHeader>
             <div className="grid grid-cols-2 gap-4 mt-2">
               <div className="col-span-2 space-y-1.5">
                 <Label>Nama Barang *</Label>
@@ -105,9 +108,7 @@ export default function BarangPage() {
                 <Label>Kategori</Label>
                 <Select value={form.kategori} onValueChange={v => setForm({...form, kategori: v})}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(kategoriIcons).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                  </SelectContent>
+                  <SelectContent>{Object.entries(kategoriLabels).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div className="space-y-1.5">
@@ -141,49 +142,48 @@ export default function BarangPage() {
               <div className="col-span-2 space-y-1.5">
                 <Label>Nasabah</Label>
                 <Select value={form.nasabah_id} onValueChange={v => setForm({...form, nasabah_id: v})}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Pilih nasabah" /></SelectTrigger>
                   <SelectContent>
-                    {dummyNasabah.map(n => <SelectItem key={n.id} value={n.id}>{n.nama_lengkap}</SelectItem>)}
+                    {nasabahList.map(n => <SelectItem key={n.id} value={n.id}>{n.nama_lengkap}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
               <div className="col-span-2 space-y-1.5">
                 <Label>Cabang</Label>
-                <Select value={form.cabang_id} onValueChange={v => setForm({...form, cabang_id: v})}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {dummyCabang.map(c => <SelectItem key={c.id} value={c.id}>{c.nama_cabang}</SelectItem>)}
-                  </SelectContent>
+                <Select value={form.cabang_id || defaultCabang} onValueChange={v => setForm({...form, cabang_id: v})}>
+                  <SelectTrigger><SelectValue placeholder="Pilih cabang" /></SelectTrigger>
+                  <SelectContent>{cabangList.map(c => <SelectItem key={c.id} value={c.id}>{c.nama_cabang}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
             </div>
             <div className="flex gap-2 justify-end mt-4">
               <Button variant="outline" onClick={() => setOpen(false)}>Batal</Button>
-              <Button className="gradient-primary shadow-emerald" onClick={handleSave}>Simpan</Button>
+              <Button className="gradient-primary shadow-emerald gap-2" onClick={handleSave} disabled={saving}>
+                {saving && <Loader2 className="w-4 h-4 animate-spin" />} Simpan
+              </Button>
             </div>
           </DialogContent>
         </Dialog>
       </div>
 
-      {/* Filters */}
       <Card className="shadow-sm">
         <CardHeader className="pb-3">
           <div className="flex flex-wrap gap-3">
-            <div className="relative flex-1 min-w-[200px]">
+            <div className="relative flex-1 min-w-[180px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input placeholder="Cari barang, kode, nasabah..." className="pl-9 h-9" value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} />
+              <Input placeholder="Cari barang, kode..." className="pl-9 h-9" value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} />
             </div>
             <Select value={filterKategori} onValueChange={v => { setFilterKategori(v); setPage(1); }}>
               <SelectTrigger className="w-36 h-9 text-sm"><SelectValue placeholder="Kategori" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Semua Kategori</SelectItem>
-                {Object.entries(kategoriIcons).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                {Object.entries(kategoriLabels).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
               </SelectContent>
             </Select>
             <Select value={filterStatus} onValueChange={v => { setFilterStatus(v); setPage(1); }}>
-              <SelectTrigger className="w-36 h-9 text-sm"><SelectValue placeholder="Status" /></SelectTrigger>
+              <SelectTrigger className="w-32 h-9 text-sm"><SelectValue placeholder="Status" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Semua Status</SelectItem>
+                <SelectItem value="all">Semua</SelectItem>
                 <SelectItem value="aktif">Aktif</SelectItem>
                 <SelectItem value="ditebus">Ditebus</SelectItem>
                 <SelectItem value="jatuh_tempo">Jatuh Tempo</SelectItem>
@@ -193,90 +193,84 @@ export default function BarangPage() {
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-border bg-muted/30">
-                  {["Kode", "Barang", "Kategori", "Kondisi", "Estimasi Nilai", "Lokasi", "Status", "Aksi"].map(h => (
-                    <th key={h} className={cn(
-                      "text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 py-3",
-                      ["Kondisi", "Lokasi"].includes(h) && "hidden lg:table-cell",
-                      ["Estimasi Nilai"].includes(h) && "text-right",
-                      ["Status", "Aksi"].includes(h) && "text-center",
-                    )}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {paginated.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} className="px-6 py-12 text-center text-muted-foreground text-sm">
+          {loading ? (
+            <div className="flex items-center justify-center py-16 gap-3 text-muted-foreground">
+              <Loader2 className="w-5 h-5 animate-spin" /> Memuat data...
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-border bg-muted/30">
+                    <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 py-3">Kode</th>
+                    <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 py-3">Barang</th>
+                    <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 py-3 hidden sm:table-cell">Kategori</th>
+                    <th className="text-right text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 py-3 hidden md:table-cell">Nilai</th>
+                    <th className="text-center text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 py-3">Status</th>
+                    <th className="text-center text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 py-3">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {paginated.length === 0 ? (
+                    <tr><td colSpan={6} className="px-6 py-12 text-center text-muted-foreground text-sm">
                       <Package className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                      Tidak ada barang ditemukan
-                    </td>
-                  </tr>
-                ) : paginated.map((b) => (
-                  <tr key={b.id} className="hover:bg-muted/30 transition-smooth">
-                    <td className="px-4 py-3.5">
-                      <span className="text-xs font-mono text-primary font-medium">{b.kode_barang}</span>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <div>
-                        <p className="text-sm font-medium text-foreground">{b.nama_barang}</p>
-                        <p className="text-xs text-muted-foreground">{b.nasabah_nama}</p>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-accent text-accent-foreground text-xs font-medium">
-                        <Tag className="w-3 h-3" />
-                        {getLabelStatus(b.kategori)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3.5 hidden lg:table-cell">
-                      <span className="text-sm text-muted-foreground">{getLabelStatus(b.kondisi)}</span>
-                    </td>
-                    <td className="px-4 py-3.5 text-right">
-                      <span className="text-sm font-semibold text-foreground">{formatCurrency(b.estimasi_nilai)}</span>
-                    </td>
-                    <td className="px-4 py-3.5 hidden lg:table-cell">
-                      <span className="text-xs text-muted-foreground">{b.lokasi_penyimpanan}</span>
-                    </td>
-                    <td className="px-4 py-3.5 text-center">
-                      <span className={cn("inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border", getStatusBarangColor(b.status))}>
-                        {getLabelStatus(b.status)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <div className="flex items-center justify-center gap-1">
-                        <Button variant="ghost" size="icon" className="w-8 h-8 text-muted-foreground hover:text-primary" onClick={() => { setSelected(b); setViewOpen(true); }}>
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="w-8 h-8 text-muted-foreground hover:text-primary">
-                          <QrCode className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                      {search ? "Tidak ada barang ditemukan" : "Belum ada barang. Klik 'Tambah Barang' untuk memulai."}
+                    </td></tr>
+                  ) : paginated.map((b) => (
+                    <tr key={b.id} className="hover:bg-muted/30 transition-smooth">
+                      <td className="px-4 py-3.5">
+                        <span className="text-xs font-mono text-primary font-medium">{b.kode_barang}</span>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <div>
+                          <p className="text-sm font-medium text-foreground">{b.nama_barang}</p>
+                          {b.merek && <p className="text-xs text-muted-foreground">{b.merek}</p>}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3.5 hidden sm:table-cell">
+                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-accent text-accent-foreground text-xs font-medium">
+                          <Tag className="w-3 h-3" />{kategoriLabels[b.kategori] || b.kategori}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5 text-right hidden md:table-cell">
+                        <span className="text-sm font-semibold">{formatCurrency(b.estimasi_nilai || 0)}</span>
+                      </td>
+                      <td className="px-4 py-3.5 text-center">
+                        <span className={cn("inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border", getStatusBarangColor(b.status as "aktif" | "ditebus" | "jatuh_tempo" | "dilelang"))}>
+                          {getLabelStatus(b.status)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <div className="flex items-center justify-center gap-1">
+                          <Button variant="ghost" size="icon" className="w-8 h-8 text-muted-foreground hover:text-primary" onClick={() => { setSelected(b); setViewOpen(true); }}>
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="w-8 h-8 text-muted-foreground hover:text-primary">
+                            <QrCode className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
           {totalPages > 1 && (
-            <div className="flex items-center justify-between px-6 py-4 border-t border-border">
-              <p className="text-xs text-muted-foreground">Menampilkan {(page-1)*perPage+1}–{Math.min(page*perPage, filtered.length)} dari {filtered.length}</p>
+            <div className="flex items-center justify-between px-4 py-3 border-t border-border flex-wrap gap-2">
+              <p className="text-xs text-muted-foreground">{(page-1)*perPage+1}–{Math.min(page*perPage, filtered.length)} dari {filtered.length}</p>
               <div className="flex items-center gap-1">
-                <Button variant="outline" size="icon" className="w-8 h-8" disabled={page===1} onClick={() => setPage(p=>p-1)}><ChevronLeft className="w-4 h-4" /></Button>
-                {Array.from({length:totalPages},(_,i)=>(
+                <Button variant="outline" size="icon" className="w-8 h-8" disabled={page===1} onClick={()=>setPage(p=>p-1)}><ChevronLeft className="w-4 h-4"/></Button>
+                {Array.from({length:Math.min(totalPages,5)},(_,i)=>(
                   <Button key={i} variant={page===i+1?"default":"outline"} size="icon" className={cn("w-8 h-8 text-xs",page===i+1&&"gradient-primary")} onClick={()=>setPage(i+1)}>{i+1}</Button>
                 ))}
-                <Button variant="outline" size="icon" className="w-8 h-8" disabled={page===totalPages} onClick={() => setPage(p=>p+1)}><ChevronRight className="w-4 h-4" /></Button>
+                <Button variant="outline" size="icon" className="w-8 h-8" disabled={page===totalPages} onClick={()=>setPage(p=>p+1)}><ChevronRight className="w-4 h-4"/></Button>
               </div>
             </div>
           )}
         </CardContent>
       </Card>
 
-      {/* View Dialog */}
       <Dialog open={viewOpen} onOpenChange={setViewOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>Detail Barang Jaminan</DialogTitle></DialogHeader>
@@ -285,21 +279,24 @@ export default function BarangPage() {
               <div className="p-4 rounded-xl bg-muted/30 border border-border">
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-xs font-mono text-primary font-medium">{selected.kode_barang}</span>
-                  <span className={cn("px-2.5 py-0.5 rounded-full text-xs font-medium border", getStatusBarangColor(selected.status))}>{getLabelStatus(selected.status)}</span>
+                  <span className={cn("px-2.5 py-0.5 rounded-full text-xs font-medium border", getStatusBarangColor(selected.status as "aktif" | "ditebus" | "jatuh_tempo" | "dilelang"))}>
+                    {getLabelStatus(selected.status)}
+                  </span>
                 </div>
                 <h3 className="font-semibold text-foreground text-lg">{selected.nama_barang}</h3>
-                <p className="text-sm text-muted-foreground">{selected.merek} · {getLabelStatus(selected.kategori)}</p>
+                <p className="text-sm text-muted-foreground">{selected.merek} · {kategoriLabels[selected.kategori] || selected.kategori}</p>
               </div>
               <div className="grid grid-cols-2 gap-3 text-sm">
-                <div><p className="text-xs text-muted-foreground">Nasabah</p><p className="font-medium">{selected.nasabah_nama}</p></div>
-                <div><p className="text-xs text-muted-foreground">Kondisi</p><p className="font-medium">{getLabelStatus(selected.kondisi)}</p></div>
+                <div><p className="text-xs text-muted-foreground">Kondisi</p><p className="font-medium">{getLabelStatus(selected.kondisi || "")}</p></div>
                 {selected.berat && <div><p className="text-xs text-muted-foreground">Berat</p><p className="font-medium">{selected.berat} gram</p></div>}
-                <div><p className="text-xs text-muted-foreground">Lokasi</p><p className="font-medium">{selected.lokasi_penyimpanan}</p></div>
+                <div><p className="text-xs text-muted-foreground">Lokasi</p><p className="font-medium">{selected.lokasi_penyimpanan || "-"}</p></div>
                 <div className="col-span-2">
                   <p className="text-xs text-muted-foreground">Estimasi Nilai</p>
-                  <p className="font-bold text-xl text-primary">{formatCurrency(selected.estimasi_nilai)}</p>
+                  <p className="font-bold text-xl text-primary">{formatCurrency(selected.estimasi_nilai || 0)}</p>
                 </div>
-                <div><p className="text-xs text-muted-foreground">Terdaftar</p><p className="font-medium">{formatDate(selected.created_at)}</p></div>
+                <div><p className="text-xs text-muted-foreground">Terdaftar</p>
+                  <p className="font-medium">{selected.created_at ? formatDate(selected.created_at) : "-"}</p>
+                </div>
               </div>
             </div>
           )}
