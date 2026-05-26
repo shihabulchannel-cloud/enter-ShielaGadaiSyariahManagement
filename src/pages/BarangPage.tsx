@@ -16,7 +16,7 @@ import {
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Package, Plus, Search, Eye, QrCode, ChevronLeft, ChevronRight, Tag, Loader2, Trash2 } from "lucide-react";
+import { Package, Plus, Search, Eye, Edit, QrCode, ChevronLeft, ChevronRight, Tag, Loader2, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
@@ -31,7 +31,7 @@ export default function BarangPage() {
   const { selectedCabang } = useCabang();
   const { data: cabangList } = useSupabaseCabang();
   const { data: nasabahList } = useSupabaseNasabah(selectedCabang?.id ?? null);
-  const { data: barangList, loading, insert, remove } = useSupabaseBarang(selectedCabang?.id ?? null);
+  const { data: barangList, loading, insert, update, remove } = useSupabaseBarang(selectedCabang?.id ?? null);
 
   const isOwner = profile?.role === "owner" || profile?.role === "super_admin";
 
@@ -42,8 +42,28 @@ export default function BarangPage() {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [viewOpen, setViewOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ nama_barang: "", kategori: "emas", merek: "", kondisi: "baik", berat: "", estimasi_nilai: "", lokasi_penyimpanan: "", nasabah_id: "", cabang_id: "" });
   const [selected, setSelected] = useState<typeof barangList[0] | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  const openEdit = (b: typeof barangList[0]) => {
+    setEditId(b.id);
+    setEditForm({ nama_barang: b.nama_barang, kategori: b.kategori, merek: b.merek || "", kondisi: b.kondisi || "baik", berat: b.berat ? String(b.berat) : "", estimasi_nilai: b.estimasi_nilai ? String(b.estimasi_nilai) : "", lokasi_penyimpanan: b.lokasi_penyimpanan || "", nasabah_id: b.nasabah_id || "", cabang_id: b.cabang_id || "" });
+    setEditOpen(true);
+  };
+
+  const handleEdit = async () => {
+    if (!editForm.nama_barang || !editForm.estimasi_nilai) { toast({ title: "Error", description: "Nama dan estimasi nilai wajib diisi.", variant: "destructive" }); return; }
+    setSaving(true);
+    try {
+      await update(editId!, { nama_barang: editForm.nama_barang, kategori: editForm.kategori, merek: editForm.merek || null, kondisi: editForm.kondisi || null, berat: editForm.berat ? parseFloat(editForm.berat) : null, estimasi_nilai: parseFloat(editForm.estimasi_nilai), lokasi_penyimpanan: editForm.lokasi_penyimpanan || null, nasabah_id: editForm.nasabah_id || null, cabang_id: editForm.cabang_id || null });
+      setEditOpen(false);
+      toast({ title: "Berhasil", description: "Data barang diperbarui." });
+    } catch (e: unknown) { toast({ title: "Error", description: (e as Error).message, variant: "destructive" }); }
+    finally { setSaving(false); }
+  };
 
   const defaultCabang = cabangList[0]?.id ?? "";
   const [form, setForm] = useState({
@@ -254,7 +274,10 @@ export default function BarangPage() {
                           <Button variant="ghost" size="icon" className="w-8 h-8 text-muted-foreground hover:text-primary" onClick={() => { setSelected(b); setViewOpen(true); }}>
                             <Eye className="w-4 h-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="w-8 h-8 text-muted-foreground hover:text-primary">
+                          <Button variant="ghost" size="icon" className="w-8 h-8 text-muted-foreground hover:text-primary" onClick={() => openEdit(b)}>
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="w-8 h-8 text-muted-foreground hover:text-primary" onClick={() => toast({ title: "QR Code", description: `Kode: ${b.kode_barang}` })}>
                             <QrCode className="w-4 h-4" />
                           </Button>
                           {isOwner && (
@@ -314,6 +337,38 @@ export default function BarangPage() {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>Edit Barang Jaminan</DialogTitle></DialogHeader>
+          <div className="grid grid-cols-2 gap-4 mt-2">
+            <div className="col-span-2 space-y-1.5"><Label>Nama Barang *</Label><Input value={editForm.nama_barang} onChange={e => setEditForm({...editForm, nama_barang: e.target.value})} /></div>
+            <div className="space-y-1.5"><Label>Kategori</Label>
+              <Select value={editForm.kategori} onValueChange={v => setEditForm({...editForm, kategori: v})}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>{Object.entries(kategoriLabels).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5"><Label>Kondisi</Label>
+              <Select value={editForm.kondisi} onValueChange={v => setEditForm({...editForm, kondisi: v})}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent><SelectItem value="sangat_baik">Sangat Baik</SelectItem><SelectItem value="baik">Baik</SelectItem><SelectItem value="cukup">Cukup</SelectItem><SelectItem value="kurang">Kurang</SelectItem></SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5"><Label>Merek</Label><Input value={editForm.merek} onChange={e => setEditForm({...editForm, merek: e.target.value})} /></div>
+            <div className="space-y-1.5"><Label>Berat (gram)</Label><Input type="number" value={editForm.berat} onChange={e => setEditForm({...editForm, berat: e.target.value})} /></div>
+            <div className="space-y-1.5"><Label>Estimasi Nilai (Rp) *</Label><Input type="number" value={editForm.estimasi_nilai} onChange={e => setEditForm({...editForm, estimasi_nilai: e.target.value})} /></div>
+            <div className="space-y-1.5"><Label>Lokasi Simpan</Label><Input value={editForm.lokasi_penyimpanan} onChange={e => setEditForm({...editForm, lokasi_penyimpanan: e.target.value})} /></div>
+          </div>
+          <div className="flex gap-2 justify-end mt-4">
+            <Button variant="outline" onClick={() => setEditOpen(false)}>Batal</Button>
+            <Button className="gradient-primary shadow-emerald gap-2" onClick={handleEdit} disabled={saving}>
+              {saving && <Loader2 className="w-4 h-4 animate-spin" />} Perbarui
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
 

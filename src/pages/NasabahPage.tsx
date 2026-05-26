@@ -28,7 +28,7 @@ export default function NasabahPage() {
   const { profile } = useAuth();
   const { selectedCabang } = useCabang();
   const { data: cabangList } = useSupabaseCabang();
-  const { data: nasabahList, loading, insert, remove } = useSupabaseNasabah(selectedCabang?.id ?? null);
+  const { data: nasabahList, loading, insert, update, remove } = useSupabaseNasabah(selectedCabang?.id ?? null);
 
   const isOwner = profile?.role === "owner" || profile?.role === "super_admin";
 
@@ -37,8 +37,28 @@ export default function NasabahPage() {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [viewOpen, setViewOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ nama_lengkap: "", nik: "", alamat: "", nomor_hp: "", pekerjaan: "", tanggal_lahir: "", cabang_id: "" });
   const [selected, setSelected] = useState<typeof nasabahList[0] | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  const openEdit = (n: typeof nasabahList[0]) => {
+    setEditId(n.id);
+    setEditForm({ nama_lengkap: n.nama_lengkap, nik: n.nik, alamat: n.alamat || "", nomor_hp: n.nomor_hp || "", pekerjaan: n.pekerjaan || "", tanggal_lahir: n.tanggal_lahir || "", cabang_id: n.cabang_id || "" });
+    setEditOpen(true);
+  };
+
+  const handleEdit = async () => {
+    if (!editForm.nama_lengkap || !editForm.nik) { toast({ title: "Error", description: "Nama dan NIK wajib diisi.", variant: "destructive" }); return; }
+    setSaving(true);
+    try {
+      await update(editId!, { nama_lengkap: editForm.nama_lengkap, nik: editForm.nik, alamat: editForm.alamat || null, nomor_hp: editForm.nomor_hp || null, pekerjaan: editForm.pekerjaan || null, tanggal_lahir: editForm.tanggal_lahir || null, cabang_id: editForm.cabang_id || null });
+      setEditOpen(false);
+      toast({ title: "Berhasil", description: "Data nasabah diperbarui." });
+    } catch (e: unknown) { toast({ title: "Error", description: (e as Error).message, variant: "destructive" }); }
+    finally { setSaving(false); }
+  };
 
   const defaultCabang = cabangList[0]?.id ?? "";
   const [form, setForm] = useState({
@@ -215,7 +235,7 @@ export default function NasabahPage() {
                           <Button variant="ghost" size="icon" className="w-8 h-8 text-muted-foreground hover:text-primary" onClick={() => { setSelected(n); setViewOpen(true); }}>
                             <Eye className="w-4 h-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="w-8 h-8 text-muted-foreground hover:text-primary">
+                          <Button variant="ghost" size="icon" className="w-8 h-8 text-muted-foreground hover:text-primary" onClick={() => openEdit(n)}>
                             <Edit className="w-4 h-4" />
                           </Button>
                           {isOwner && (
@@ -285,8 +305,34 @@ export default function NasabahPage() {
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={!!deleteId} onOpenChange={o => !o && setDeleteId(null)}>
-        <AlertDialogContent>
+      {/* Edit Dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>Edit Nasabah</DialogTitle></DialogHeader>
+          <div className="grid grid-cols-2 gap-4 mt-2">
+            <div className="col-span-2 space-y-1.5"><Label>Nama Lengkap *</Label><Input value={editForm.nama_lengkap} onChange={e => setEditForm({...editForm, nama_lengkap: e.target.value})} /></div>
+            <div className="space-y-1.5"><Label>NIK *</Label><Input maxLength={16} value={editForm.nik} onChange={e => setEditForm({...editForm, nik: e.target.value})} /></div>
+            <div className="space-y-1.5"><Label>Nomor HP</Label><Input value={editForm.nomor_hp} onChange={e => setEditForm({...editForm, nomor_hp: e.target.value})} /></div>
+            <div className="col-span-2 space-y-1.5"><Label>Alamat</Label><Textarea rows={2} value={editForm.alamat} onChange={e => setEditForm({...editForm, alamat: e.target.value})} /></div>
+            <div className="space-y-1.5"><Label>Pekerjaan</Label><Input value={editForm.pekerjaan} onChange={e => setEditForm({...editForm, pekerjaan: e.target.value})} /></div>
+            <div className="space-y-1.5"><Label>Tanggal Lahir</Label><Input type="date" value={editForm.tanggal_lahir} onChange={e => setEditForm({...editForm, tanggal_lahir: e.target.value})} /></div>
+            <div className="col-span-2 space-y-1.5"><Label>Cabang</Label>
+              <Select value={editForm.cabang_id || cabangList[0]?.id || ""} onValueChange={v => setEditForm({...editForm, cabang_id: v})}>
+                <SelectTrigger><SelectValue placeholder="Pilih cabang" /></SelectTrigger>
+                <SelectContent>{cabangList.map(c => <SelectItem key={c.id} value={c.id}>{c.nama_cabang}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="flex gap-2 justify-end mt-4">
+            <Button variant="outline" onClick={() => setEditOpen(false)}>Batal</Button>
+            <Button className="gradient-primary shadow-emerald gap-2" onClick={handleEdit} disabled={saving}>
+              {saving && <Loader2 className="w-4 h-4 animate-spin" />} Perbarui
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!deleteId} onOpenChange={o => !o && setDeleteId(null)}>        <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Hapus nasabah ini?</AlertDialogTitle>
             <AlertDialogDescription>Data nasabah akan dihapus permanen dari database dan tidak dapat dikembalikan.</AlertDialogDescription>

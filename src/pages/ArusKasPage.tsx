@@ -38,15 +38,7 @@ interface ArusKasRow {
   jul: number; agu: number; sep: number; okt: number; nov: number; des: number;
 }
 
-const defaultRows: ArusKasRow[] = [
-  { id: "1", kategori: "masuk", nama: "Penerimaan Pinjaman Gadai",      jan:18000000,feb:22000000,mar:27000000,apr:24000000,mei:29000000,jun:34000000,jul:0,agu:0,sep:0,okt:0,nov:0,des:0 },
-  { id: "2", kategori: "masuk", nama: "Ujrah / Biaya Pemeliharaan",     jan:5500000, feb:6200000, mar:7500000, apr:7200000, mei:8300000, jun:9600000, jul:0,agu:0,sep:0,okt:0,nov:0,des:0 },
-  { id: "3", kategori: "masuk", nama: "Perpanjangan Akad",              jan:3000000, feb:4000000, mar:4500000, apr:5500000, mei:6000000, jun:6500000, jul:0,agu:0,sep:0,okt:0,nov:0,des:0 },
-  { id: "4", kategori: "masuk", nama: "Pelunasan Barang",               jan:2000000, feb:2000000, mar:2000000, apr:2000000, mei:2000000, jun:2000000, jul:0,agu:0,sep:0,okt:0,nov:0,des:0 },
-  { id: "5", kategori: "keluar", nama: "Beban Gaji Karyawan",           jan:8000000, feb:8000000, mar:8000000, apr:8000000, mei:8000000, jun:8500000, jul:0,agu:0,sep:0,okt:0,nov:0,des:0 },
-  { id: "6", kategori: "keluar", nama: "Beban Sewa Tempat",             jan:3000000, feb:3000000, mar:3500000, apr:3500000, mei:3500000, jun:4000000, jul:0,agu:0,sep:0,okt:0,nov:0,des:0 },
-  { id: "7", kategori: "keluar", nama: "Beban Operasional Lain",        jan:1500000, feb:2200000, mar:2300000, apr:1400000, mei:2600000, jun:2500000, jul:0,agu:0,sep:0,okt:0,nov:0,des:0 },
-];
+const defaultRows: ArusKasRow[] = [];
 
 const emptyRow = (kat: Kategori): ArusKasRow => ({
   id: String(Date.now()),
