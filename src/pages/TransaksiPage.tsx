@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useCabang } from "@/hooks/use-cabang";
+import { useAuth } from "@/hooks/use-auth";
 import { useSupabaseTransaksi } from "@/hooks/use-supabase-transaksi";
 import { useSupabaseNasabah } from "@/hooks/use-supabase-nasabah";
 import { useSupabaseBarang } from "@/hooks/use-supabase-barang";
@@ -10,10 +11,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   HandCoins, Plus, Search, Eye, RefreshCw, CheckCircle,
-  ChevronLeft, ChevronRight, FileText, Printer, Calculator, Loader2,
+  ChevronLeft, ChevronRight, FileText, Printer, Calculator, Loader2, Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -91,11 +96,14 @@ function printAkad(trx: { nomor_transaksi: string; nilai_pinjaman: number; ujrah
 
 export default function TransaksiPage() {
   const { toast } = useToast();
+  const { profile } = useAuth();
   const { selectedCabang } = useCabang();
   const { data: cabangList } = useSupabaseCabang();
   const { data: nasabahList } = useSupabaseNasabah(null);
   const { data: barangList } = useSupabaseBarang(null);
-  const { data: transaksiList, loading, insert, updateStatus } = useSupabaseTransaksi(selectedCabang?.id ?? null);
+  const { data: transaksiList, loading, insert, updateStatus, remove } = useSupabaseTransaksi(selectedCabang?.id ?? null);
+
+  const isOwner = profile?.role === "owner" || profile?.role === "super_admin";
 
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
@@ -104,6 +112,7 @@ export default function TransaksiPage() {
   const [saving, setSaving] = useState(false);
   const [viewOpen, setViewOpen] = useState(false);
   const [selected, setSelected] = useState<typeof transaksiList[0] | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const [form, setForm] = useState({
     nasabah_id: "", barang_id: "", cabang_id: "",
@@ -372,6 +381,11 @@ export default function TransaksiPage() {
                             <Button variant="ghost" size="icon" className="w-8 h-8 text-muted-foreground hover:text-blue-600" onClick={async () => { await updateStatus(t.id, "diperpanjang"); toast({ title: "Diperpanjang" }); }}><RefreshCw className="w-4 h-4" /></Button>
                             <Button variant="ghost" size="icon" className="w-8 h-8 text-muted-foreground hover:text-emerald-600" onClick={async () => { await updateStatus(t.id, "lunas", { tanggal_pelunasan: new Date().toISOString().split("T")[0] }); toast({ title: "Lunas" }); }}><CheckCircle className="w-4 h-4" /></Button>
                           </>)}
+                          {isOwner && (
+                            <Button variant="ghost" size="icon" className="w-8 h-8 text-muted-foreground hover:text-destructive" onClick={() => setDeleteId(t.id)}>
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -429,6 +443,22 @@ export default function TransaksiPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deleteId} onOpenChange={o => !o && setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus transaksi ini?</AlertDialogTitle>
+            <AlertDialogDescription>Data transaksi akan dihapus permanen dari database.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={async () => {
+              try { await remove(deleteId!); toast({ title: "Transaksi dihapus" }); } catch(e: unknown) { toast({ title: "Gagal", description: (e as Error).message, variant: "destructive" }); }
+              setDeleteId(null);
+            }}>Hapus</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -57,5 +57,11 @@ export function useSupabaseTransaksi(cabangId?: string | null) {
     setData(prev => prev.map(p => p.id === id ? { ...p, status, ...extra } : p));
   };
 
-  return { data, loading, refetch: fetch, insert, updateStatus };
+  const remove = async (id: string) => {
+    const { error } = await supabase.from("transaksi_gadai").delete().eq("id", id);
+    if (error) throw error;
+    setData(prev => prev.filter(p => p.id !== id));
+  };
+
+  return { data, loading, refetch: fetch, insert, updateStatus, remove };
 }

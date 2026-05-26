@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useCabang } from "@/hooks/use-cabang";
+import { useAuth } from "@/hooks/use-auth";
 import { useSupabaseNasabah } from "@/hooks/use-supabase-nasabah";
 import { useSupabaseCabang } from "@/hooks/use-supabase-cabang";
 import { formatDate } from "@/lib/dummy-data";
@@ -9,20 +10,27 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Users, Plus, Search, Edit, Eye, Phone, MapPin, Briefcase,
-  ChevronLeft, ChevronRight, Loader2,
+  ChevronLeft, ChevronRight, Loader2, Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
 export default function NasabahPage() {
   const { toast } = useToast();
+  const { profile } = useAuth();
   const { selectedCabang } = useCabang();
   const { data: cabangList } = useSupabaseCabang();
-  const { data: nasabahList, loading, insert } = useSupabaseNasabah(selectedCabang?.id ?? null);
+  const { data: nasabahList, loading, insert, remove } = useSupabaseNasabah(selectedCabang?.id ?? null);
+
+  const isOwner = profile?.role === "owner" || profile?.role === "super_admin";
 
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -30,6 +38,7 @@ export default function NasabahPage() {
   const [saving, setSaving] = useState(false);
   const [viewOpen, setViewOpen] = useState(false);
   const [selected, setSelected] = useState<typeof nasabahList[0] | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const defaultCabang = cabangList[0]?.id ?? "";
   const [form, setForm] = useState({
@@ -209,6 +218,11 @@ export default function NasabahPage() {
                           <Button variant="ghost" size="icon" className="w-8 h-8 text-muted-foreground hover:text-primary">
                             <Edit className="w-4 h-4" />
                           </Button>
+                          {isOwner && (
+                            <Button variant="ghost" size="icon" className="w-8 h-8 text-muted-foreground hover:text-destructive" onClick={() => setDeleteId(n.id)}>
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -234,8 +248,7 @@ export default function NasabahPage() {
         </CardContent>
       </Card>
 
-      <Dialog open={viewOpen} onOpenChange={setViewOpen}>
-        <DialogContent className="max-w-md">
+      <Dialog open={viewOpen} onOpenChange={setViewOpen}>        <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>Detail Nasabah</DialogTitle></DialogHeader>
           {selected && (
             <div className="space-y-4">
@@ -271,6 +284,22 @@ export default function NasabahPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deleteId} onOpenChange={o => !o && setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus nasabah ini?</AlertDialogTitle>
+            <AlertDialogDescription>Data nasabah akan dihapus permanen dari database dan tidak dapat dikembalikan.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={async () => {
+              try { await remove(deleteId!); toast({ title: "Nasabah dihapus" }); } catch(e: unknown) { toast({ title: "Gagal", description: (e as Error).message, variant: "destructive" }); }
+              setDeleteId(null);
+            }}>Hapus</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

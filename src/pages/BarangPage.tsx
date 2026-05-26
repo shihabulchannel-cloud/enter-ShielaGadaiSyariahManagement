@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useCabang } from "@/hooks/use-cabang";
+import { useAuth } from "@/hooks/use-auth";
 import { useSupabaseBarang } from "@/hooks/use-supabase-barang";
 import { useSupabaseNasabah } from "@/hooks/use-supabase-nasabah";
 import { useSupabaseCabang } from "@/hooks/use-supabase-cabang";
@@ -10,8 +11,12 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Package, Plus, Search, Eye, QrCode, ChevronLeft, ChevronRight, Tag, Loader2 } from "lucide-react";
+import { Package, Plus, Search, Eye, QrCode, ChevronLeft, ChevronRight, Tag, Loader2, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
@@ -22,10 +27,13 @@ const kategoriLabels: Record<string, string> = {
 
 export default function BarangPage() {
   const { toast } = useToast();
+  const { profile } = useAuth();
   const { selectedCabang } = useCabang();
   const { data: cabangList } = useSupabaseCabang();
   const { data: nasabahList } = useSupabaseNasabah(selectedCabang?.id ?? null);
-  const { data: barangList, loading, insert } = useSupabaseBarang(selectedCabang?.id ?? null);
+  const { data: barangList, loading, insert, remove } = useSupabaseBarang(selectedCabang?.id ?? null);
+
+  const isOwner = profile?.role === "owner" || profile?.role === "super_admin";
 
   const [search, setSearch] = useState("");
   const [filterKategori, setFilterKategori] = useState("all");
@@ -35,6 +43,7 @@ export default function BarangPage() {
   const [saving, setSaving] = useState(false);
   const [viewOpen, setViewOpen] = useState(false);
   const [selected, setSelected] = useState<typeof barangList[0] | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const defaultCabang = cabangList[0]?.id ?? "";
   const [form, setForm] = useState({
@@ -248,6 +257,11 @@ export default function BarangPage() {
                           <Button variant="ghost" size="icon" className="w-8 h-8 text-muted-foreground hover:text-primary">
                             <QrCode className="w-4 h-4" />
                           </Button>
+                          {isOwner && (
+                            <Button variant="ghost" size="icon" className="w-8 h-8 text-muted-foreground hover:text-destructive" onClick={() => setDeleteId(b.id)}>
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -302,6 +316,22 @@ export default function BarangPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deleteId} onOpenChange={o => !o && setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus barang jaminan ini?</AlertDialogTitle>
+            <AlertDialogDescription>Data barang akan dihapus permanen dari database.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={async () => {
+              try { await remove(deleteId!); toast({ title: "Barang dihapus" }); } catch(e: unknown) { toast({ title: "Gagal", description: (e as Error).message, variant: "destructive" }); }
+              setDeleteId(null);
+            }}>Hapus</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
